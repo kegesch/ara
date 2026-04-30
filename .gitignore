@@ -1,5 +1,5 @@
 node_modules/
 dist/
-arad
-arad.exe
+/arad
+/arad.exe
 *.tgz

@@ -3,8 +3,12 @@
   "version": "0.1.0",
   "description": "Architecture, Requirements, Assumptions, Decisions — traceability for humans and agents",
   "type": "module",
+  "keywords": ["pi-package"],
   "bin": {
     "arad": "./src/index.ts"
+  },
+  "pi": {
+    "skills": ["./skill"]
   },
   "scripts": {
     "dev": "bun run src/index.ts",
