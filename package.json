@@ -1,0 +1,24 @@
+{
+  "name": "arad",
+  "version": "0.1.0",
+  "description": "Architecture, Requirements, Assumptions, Decisions — traceability for humans and agents",
+  "type": "module",
+  "bin": {
+    "arad": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun build src/index.ts --compile --outfile arad",
+    "test": "bun test",
+    "arad": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "commander": "^13.1.0",
+    "yaml": "^2.7.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.8.0"
+  }
+}

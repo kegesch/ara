@@ -1,0 +1,152 @@
+#!/usr/bin/env bun
+// ARAD — Architecture, Requirements, Assumptions, Decisions
+// CLI entry point
+
+import { Command } from 'commander';
+import { initCommand } from './commands/init.js';
+import { addCommand } from './commands/add.js';
+import { listCommand } from './commands/list.js';
+import { showCommand } from './commands/show.js';
+import { editCommand } from './commands/edit.js';
+import { traceCommand } from './commands/trace.js';
+import { impactCommand } from './commands/impact.js';
+import { validateCommand, invalidateCommand, promoteCommand } from './commands/validate.js';
+import { checkCommand } from './commands/check.js';
+import { queryCommand } from './commands/query.js';
+import { linkCommand, unlinkCommand } from './commands/link.js';
+import { startMcpServer } from './mcp/server.js';
+import { graphCommand } from './commands/graph.js';
+
+const program = new Command();
+
+program
+  .name('arad')
+  .description('Architecture, Requirements, Assumptions, Decisions — traceability for humans and agents')
+  .version('0.1.0');
+
+program
+  .command('init')
+  .description('Initialize .arad/ in the current directory')
+  .action(initCommand);
+
+program
+  .command('add')
+  .argument('<type>', 'Entity type: requirement | assumption | decision')
+  .argument('[title]', 'Entity title')
+  .option('--driven-by <ids>', 'Comma-separated IDs that drive this decision')
+  .option('--status <status>', 'Entity status')
+  .option('--tags <tags>', 'Comma-separated tags')
+  .action(async (type: string, title: string | undefined, opts: Record<string, string>) => {
+    const validTypes = ['requirement', 'assumption', 'decision'] as const;
+    if (!validTypes.includes(type as any)) {
+      console.error(`Invalid type: "${type}". Must be: requirement, assumption, decision`);
+      process.exit(1);
+    }
+    await addCommand(type as typeof validTypes[number], title, opts);
+  });
+
+program
+  .command('list')
+  .argument('[type]', 'Filter by type: requirement | assumption | decision')
+  .option('--status <status>', 'Filter by status')
+  .option('--tag <tag>', 'Filter by tag')
+  .action((type: string | undefined, opts: Record<string, string>) => {
+    listCommand(type, opts);
+  });
+
+program
+  .command('show')
+  .argument('<id>', 'Entity ID (e.g. R-001, A-003, D-007)')
+  .action(showCommand);
+
+program
+  .command('edit')
+  .argument('<id>', 'Entity ID to edit in $EDITOR')
+  .action(editCommand);
+
+program
+  .command('trace')
+  .argument('<id>', 'Entity ID to trace dependencies for')
+  .description('Show dependency tree (what backs this entity)')
+  .action(traceCommand);
+
+program
+  .command('impact')
+  .argument('<id>', 'Entity ID to analyze impact for')
+  .description('Show what would be affected if this entity changes')
+  .action(impactCommand);
+
+program
+  .command('check')
+  .description('Find orphans, contradictions, dangling refs, unvalidated assumptions')
+  .option('--strict', 'Treat warnings as errors (exit code 1)')
+  .option('--format <format>', 'Output format: text or json', 'text')
+  .action((opts: { strict?: boolean; format?: string }) => {
+    checkCommand({
+      strict: opts.strict,
+      format: (opts.format as 'text' | 'json') ?? 'text',
+    });
+  });
+
+program
+  .command('validate')
+  .argument('<id>', 'Assumption ID to validate')
+  .description('Mark an assumption as validated')
+  .action(validateCommand);
+
+program
+  .command('invalidate')
+  .argument('<id>', 'Assumption ID to invalidate')
+  .description('Mark an assumption as invalidated (shows impact)')
+  .action(invalidateCommand);
+
+program
+  .command('promote')
+  .argument('<id>', 'Assumption ID to promote')
+  .description('Promote a validated assumption to a requirement')
+  .action(promoteCommand);
+
+program
+  .command('link')
+  .argument('<from-id>', 'Source entity ID')
+  .argument('<to-id>', 'Target entity ID')
+  .option('--type <type>', 'Edge type: driven_by | enables | supersedes | derived_from | conflicts_with')
+  .description('Link two entities with a relationship')
+  .action((fromId: string, toId: string, opts: { type?: string }) => {
+    linkCommand(fromId, toId, opts);
+  });
+
+program
+  .command('unlink')
+  .argument('<from-id>', 'Source entity ID')
+  .argument('<to-id>', 'Target entity ID')
+  .option('--type <type>', 'Edge type to remove (checks all if not specified)')
+  .description('Remove a relationship between two entities')
+  .action((fromId: string, toId: string, opts: { type?: string }) => {
+    unlinkCommand(fromId, toId, opts);
+  });
+
+program
+  .command('query')
+  .argument('<terms...>', 'Search terms (supports type:, status:, tag:, driven_by:, id: modifiers)')
+  .description('Search entities by text or structured modifiers')
+  .action((terms: string[]) => {
+    queryCommand(terms.join(' '));
+  });
+
+program
+  .command('mcp')
+  .description('Start MCP server (stdio transport) for AI agent integration')
+  .action(async () => {
+    await startMcpServer();
+  });
+
+program
+  .command('graph')
+  .description('Visualize the ARAD graph (Mermaid, DOT, or ASCII)')
+  .option('--format <format>', 'Output format: mermaid, dot, ascii', 'mermaid')
+  .action((opts: { format?: string }) => {
+    graphCommand(opts.format);
+  });
+
+program.parse();
