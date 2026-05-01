@@ -117,6 +117,21 @@ export function promoteCommand(id: string): void {
   entity.promoted_to = newId;
   updateEntity(process.cwd(), entity);
 
+  // Auto-link: find all decisions driven by this assumption and add the new requirement
+  const graph = buildGraph(entities);
+  const dependents = getDependents(graph, id);
+  let linkedCount = 0;
+  for (const dep of dependents) {
+    if (dep.type === 'decision' && dep.driven_by && !dep.driven_by.includes(newId)) {
+      dep.driven_by.push(newId);
+      updateEntity(process.cwd(), dep);
+      linkedCount++;
+    }
+  }
+
   console.log(green(`✓ Promoted ${colorId(id)} → ${colorId(newId)}`));
   console.log(`  Assumption "${entity.title}" is now requirement ${newId}`);
+  if (linkedCount > 0) {
+    console.log(dim(`  Auto-linked ${linkedCount} dependent decision(s) to ${newId}`));
+  }
 }

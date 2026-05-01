@@ -4,48 +4,34 @@ import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 import type { Entity, EntityType } from '../types.js';
 import { ENTITY_CONFIG } from '../types.js';
-import { getNextId, writeEntity, slugify, requireAradProject, readAllEntities } from '../io/files.js';
+import { getNextId, writeEntity, requireAradProject, readAllEntities } from '../io/files.js';
 
-/**
- * Simple stdin line reader that works with piped input.
- * Falls back to readline for TTY (interactive) mode.
- */
-async function readLines(count: number): Promise<string[]> {
-  if (!process.stdin.isTTY) {
-    // Piped mode — read lines from stdin
-    return new Promise((resolve) => {
-      const lines: string[] = [];
-      let buf = '';
-      process.stdin.setEncoding('utf-8');
-      process.stdin.on('data', (chunk) => { buf += chunk; });
-      process.stdin.on('end', () => {
-        const allLines = buf.split('\n');
-        for (let i = 0; i < count; i++) {
-          lines.push(allLines[i] ?? '');
-        }
-        resolve(lines);
-      });
-      process.stdin.resume();
+function readline(): Promise<string> {
+  return new Promise((resolve) => {
+    process.stdin.setRawMode(false);
+    const rl = require('node:readline').createInterface({ input: process.stdin, output: process.stdout });
+    rl.question('', (answer: string) => {
+      rl.close();
+      resolve(answer);
     });
-  }
+  });
+}
 
-  // TTY mode — use readline
-  const readline = await import('node:readline');
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  const lines: string[] = [];
-
-  for (let i = 0; i < count; i++) {
-    const line = await new Promise<string>(resolve => rl.question('', resolve));
-    lines.push(line);
-  }
-  rl.close();
-  return lines;
+async function prompt(question: string, fallback: string = ''): Promise<string> {
+  if (!process.stdin.isTTY) return fallback;
+  process.stdout.write(question);
+  const answer = await readline();
+  return answer.trim() || fallback;
 }
 
 interface AddOptions {
   drivenBy?: string;
   status?: string;
   tags?: string;
+  derivedFrom?: string;
+  conflictsWith?: string;
+  enables?: string;
+  supersedes?: string;
 }
 
 export async function addCommand(
@@ -55,19 +41,17 @@ export async function addCommand(
 ): Promise<void> {
   requireAradProject();
 
-  // If title is not provided and we're in non-interactive mode, bail
-  if (!titleArg && !process.stdin.isTTY) {
+  const isInteractive = !!process.stdin.isTTY;
+
+  // Title
+  if (!titleArg && !isInteractive) {
     console.error('Title is required in non-interactive mode.');
     console.error('Usage: arad add <type> "Title here"');
     process.exit(1);
   }
-
-  // Title
   let title = titleArg ?? '';
-  if (!title && process.stdin.isTTY) {
-    process.stdout.write('Title: ');
-    const lines = await readLines(1);
-    title = lines[0].trim();
+  if (!title && isInteractive) {
+    title = await prompt('Title: ');
   }
   if (!title) {
     console.error('Title is required.');
@@ -80,15 +64,10 @@ export async function addCommand(
 
   // Status
   let status = options?.status?.trim() || '';
-  if (!status) {
-    if (process.stdin.isTTY) {
-      process.stdout.write(`Status (${config.statuses.join('/')}) [${config.statuses[0]}]: `);
-      const lines = await readLines(1);
-      status = lines[0].trim() || config.statuses[0];
-    } else {
-      status = config.statuses[0];
-    }
+  if (!status && isInteractive) {
+    status = await prompt(`Status (${config.statuses.join('/')}) [${config.statuses[0]}]: `, config.statuses[0]);
   }
+  if (!status) status = config.statuses[0];
   if (!config.statuses.includes(status)) {
     console.error(`Invalid status "${status}". Must be one of: ${config.statuses.join(', ')}`);
     return;
@@ -96,10 +75,8 @@ export async function addCommand(
 
   // Tags
   let tagsInput = options?.tags || '';
-  if (!tagsInput && process.stdin.isTTY) {
-    process.stdout.write('Tags (comma-separated): ');
-    const lines = await readLines(1);
-    tagsInput = lines[0].trim();
+  if (!tagsInput && isInteractive) {
+    tagsInput = await prompt('Tags (comma-separated): ');
   }
   const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [];
 
@@ -115,24 +92,25 @@ export async function addCommand(
     return ids;
   }
 
+  function parseIds(input: string): string[] {
+    return input ? validateIds(input.split(',').map(s => s.trim()).filter(Boolean)) : [];
+  }
+
   let entity: Entity;
 
   switch (type) {
     case 'requirement': {
-      let derived: string[] = [];
-      let conflicts: string[] = [];
-
-      if (process.stdin.isTTY) {
-        process.stdout.write('Derived from (R-IDs, comma-separated): ');
-        const lines = await readLines(1);
-        const derivedInput = lines[0].trim();
-        derived = derivedInput ? validateIds(derivedInput.split(',').map(s => s.trim()).filter(Boolean)) : [];
-
-        process.stdout.write('Conflicts with (R-IDs, comma-separated): ');
-        const lines2 = await readLines(1);
-        const conflictsInput = lines2[0].trim();
-        conflicts = conflictsInput ? validateIds(conflictsInput.split(',').map(s => s.trim()).filter(Boolean)) : [];
+      let derivedInput = options?.derivedFrom || '';
+      if (!derivedInput && isInteractive) {
+        derivedInput = await prompt('Derived from (R-IDs, comma-separated): ');
       }
+      const derived = parseIds(derivedInput);
+
+      let conflictsInput = options?.conflictsWith || '';
+      if (!conflictsInput && isInteractive) {
+        conflictsInput = await prompt('Conflicts with (R-IDs, comma-separated): ');
+      }
+      const conflicts = parseIds(conflictsInput);
 
       entity = {
         type: 'requirement', id, title: title.trim(), status: status as any, date, tags,
@@ -148,44 +126,35 @@ export async function addCommand(
       break;
     }
     case 'decision': {
-      let driven_by: string[] = [];
-      let enables: string[] = [];
-      let supersedes = '';
-
-      const drivenInput = options?.drivenBy || '';
-      if (drivenInput) {
-        driven_by = validateIds(drivenInput.split(',').map(s => s.trim()).filter(Boolean));
-      } else if (process.stdin.isTTY) {
-        process.stdout.write('Driven by (R/A-IDs, comma-separated): ');
-        const lines = await readLines(1);
-        const input = lines[0].trim();
-        driven_by = input ? validateIds(input.split(',').map(s => s.trim()).filter(Boolean)) : [];
+      let drivenInput = options?.drivenBy || '';
+      if (!drivenInput && isInteractive) {
+        drivenInput = await prompt('Driven by (R/A-IDs, comma-separated): ');
       }
+      const driven_by = parseIds(drivenInput);
 
-      if (process.stdin.isTTY) {
-        process.stdout.write('Enables (D-IDs, comma-separated): ');
-        const lines = await readLines(1);
-        const enablesInput = lines[0].trim();
-        enables = enablesInput ? validateIds(enablesInput.split(',').map(s => s.trim()).filter(Boolean)) : [];
+      let enablesInput = options?.enables || '';
+      if (!enablesInput && isInteractive) {
+        enablesInput = await prompt('Enables (D-IDs, comma-separated): ');
+      }
+      const enables = parseIds(enablesInput);
 
-        process.stdout.write('Supersedes (D-ID, or empty): ');
-        const lines2 = await readLines(1);
-        supersedes = lines2[0].trim();
+      let supersedesInput = options?.supersedes || '';
+      if (!supersedesInput && isInteractive) {
+        supersedesInput = await prompt('Supersedes (D-ID, or empty): ');
       }
 
       entity = {
         type: 'decision', id, title: title.trim(), status: status as any, date, tags,
-        driven_by, enables, supersedes: supersedes || undefined, body: '', filePath: '',
+        driven_by, enables, supersedes: supersedesInput.trim() || undefined, body: '', filePath: '',
       };
       break;
     }
   }
 
   // Open editor for body (only interactive)
-  if (process.stdin.isTTY) {
-    process.stdout.write('Open editor for description? [y/N]: ');
-    const lines = await readLines(1);
-    if (lines[0].trim().toLowerCase() === 'y') {
+  if (isInteractive) {
+    const editAnswer = await prompt('Open editor for description? [y/N]: ');
+    if (editAnswer.toLowerCase() === 'y') {
       const tmpFile = join(process.cwd(), '.arad', `tmp-${id}.md`);
       writeFileSync(tmpFile, config.template(title.trim()), 'utf-8');
       try {

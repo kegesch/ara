@@ -32,7 +32,7 @@ export function graphCommand(format: string = 'mermaid'): void {
 
 // ─── Mermaid ───
 
-function renderMermaid(graph: { entities: Map<string, Entity>; edges: Edge[] }): string {
+export function renderMermaid(graph: { entities: Map<string, Entity>; edges: Edge[] }): string {
   const lines: string[] = ['graph TD'];
 
   // Group nodes by type
@@ -114,7 +114,7 @@ function escMermaid(s: string): string {
 
 // ─── DOT (Graphviz) ───
 
-function renderDot(graph: { entities: Map<string, Entity>; edges: Edge[] }): string {
+export function renderDot(graph: { entities: Map<string, Entity>; edges: Edge[] }): string {
   const lines: string[] = [
     'digraph ARAD {',
     '  rankdir=BT;',

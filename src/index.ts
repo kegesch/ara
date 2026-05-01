@@ -16,6 +16,10 @@ import { queryCommand } from './commands/query.js';
 import { linkCommand, unlinkCommand } from './commands/link.js';
 import { startMcpServer } from './mcp/server.js';
 import { graphCommand } from './commands/graph.js';
+import { removeCommand } from './commands/remove.js';
+import { renameCommand } from './commands/rename.js';
+import { importCommand } from './commands/import.js';
+import { statusCommand } from './commands/status.js';
 
 const program = new Command();
 
@@ -36,6 +40,10 @@ program
   .option('--driven-by <ids>', 'Comma-separated IDs that drive this decision')
   .option('--status <status>', 'Entity status')
   .option('--tags <tags>', 'Comma-separated tags')
+  .option('--derived-from <ids>', 'Comma-separated parent requirement IDs')
+  .option('--conflicts-with <ids>', 'Comma-separated conflicting requirement IDs')
+  .option('--enables <ids>', 'Comma-separated decision IDs this enables')
+  .option('--supersedes <id>', 'Decision ID this supersedes')
   .action(async (type: string, title: string | undefined, opts: Record<string, string>) => {
     const validTypes = ['requirement', 'assumption', 'decision'] as const;
     if (!validTypes.includes(type as any)) {
@@ -147,6 +155,42 @@ program
   .option('--format <format>', 'Output format: mermaid, dot, ascii', 'mermaid')
   .action((opts: { format?: string }) => {
     graphCommand(opts.format);
+  });
+
+program
+  .command('remove')
+  .argument('<id>', 'Entity ID to remove')
+  .option('--force', 'Remove even if referenced by other entities (leaves dangling refs)')
+  .option('--clean', 'Remove and clean up references from other entities')
+  .description('Remove an entity from the ARAD graph')
+  .action((id: string, opts: { force?: boolean; clean?: boolean }) => {
+    removeCommand(id, { force: opts.force || opts.clean, clean: opts.clean });
+  });
+
+program
+  .command('rename')
+  .argument('<id>', 'Current entity ID')
+  .argument('<new-id>', 'New entity ID')
+  .option('--title <title>', 'New title (optional)')
+  .description('Rename an entity ID, updating all references')
+  .action((id: string, newId: string, opts: { title?: string }) => {
+    renameCommand(id, newId, opts);
+  });
+
+program
+  .command('import')
+  .argument('<path>', 'Directory or file to import from')
+  .option('--type <type>', 'Import format: adr', 'adr')
+  .description('Import existing ADR markdown files as decisions')
+  .action((path: string, opts: { type?: string }) => {
+    importCommand(path, opts);
+  });
+
+program
+  .command('status')
+  .description('Quick project health summary')
+  .action(() => {
+    statusCommand();
   });
 
 program.parse();

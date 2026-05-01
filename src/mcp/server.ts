@@ -321,6 +321,134 @@ server.tool('arad_promote', 'Promote a validated assumption to a requirement',
   }
 );
 
+// ─── Tool: arad_link ───
+
+server.tool('arad_link', 'Create a relationship between two entities',
+  {
+    from_id: z.string().describe('Source entity ID'),
+    to_id: z.string().describe('Target entity ID'),
+    type: z.string().optional().describe('Edge type: driven_by, enables, supersedes, derived_from, conflicts_with'),
+  },
+  async ({ from_id, to_id, type }) => {
+    if (!isAradProject()) {
+      return { content: [{ type: 'text', text: 'Error: Not an ARAD project.' }] };
+    }
+    const fromEntity = readEntityById(process.cwd(), from_id);
+    const toEntity = readEntityById(process.cwd(), to_id);
+    if (!fromEntity) return { content: [{ type: 'text', text: `${from_id} not found.` }] };
+    if (!toEntity) return { content: [{ type: 'text', text: `${to_id} not found.` }] };
+
+    const { VALID_EDGES } = await import('../commands/link.js');
+    const key = `${fromEntity.type}-${toEntity.type}`;
+    const validForPair = VALID_EDGES[key];
+    if (!validForPair) {
+      return { content: [{ type: 'text', text: `No valid relationship from ${fromEntity.type} to ${toEntity.type}.` }] };
+    }
+
+    let edgeType = type;
+    if (!edgeType) {
+      if (validForPair.length === 1) edgeType = validForPair[0];
+      else return { content: [{ type: 'text', text: `Ambiguous. Specify type: ${validForPair.join(', ')}` }] };
+    }
+    if (!validForPair.includes(edgeType as any)) {
+      return { content: [{ type: 'text', text: `Invalid edge type "${edgeType}" for ${fromEntity.type} → ${toEntity.type}. Valid: ${validForPair.join(', ')}` }] };
+    }
+
+    const { updateEntity } = await import('../io/files.js');
+    switch (fromEntity.type) {
+      case 'decision':
+        if (edgeType === 'driven_by' && !(fromEntity as any).driven_by.includes(to_id)) {
+          (fromEntity as any).driven_by.push(to_id);
+        } else if (edgeType === 'enables' && !(fromEntity as any).enables.includes(to_id)) {
+          (fromEntity as any).enables.push(to_id);
+        } else if (edgeType === 'supersedes') {
+          (fromEntity as any).supersedes = to_id;
+          if (toEntity.type === 'decision' && toEntity.status !== 'superseded') {
+            toEntity.status = 'superseded';
+            updateEntity(process.cwd(), toEntity);
+          }
+        }
+        break;
+      case 'requirement':
+        if (edgeType === 'derived_from' && !(fromEntity as any).derived_from.includes(to_id)) {
+          (fromEntity as any).derived_from.push(to_id);
+        } else if (edgeType === 'conflicts_with') {
+          if (!(fromEntity as any).conflicts_with.includes(to_id)) (fromEntity as any).conflicts_with.push(to_id);
+          if (toEntity.type === 'requirement' && !(toEntity as any).conflicts_with.includes(from_id)) {
+            (toEntity as any).conflicts_with.push(from_id);
+            updateEntity(process.cwd(), toEntity);
+          }
+        }
+        break;
+    }
+    updateEntity(process.cwd(), fromEntity);
+    return { content: [{ type: 'text', text: JSON.stringify({ linked: `${from_id} ──${edgeType}──▶ ${to_id}` }, null, 2) }] };
+  }
+);
+
+// ─── Tool: arad_unlink ───
+
+server.tool('arad_unlink', 'Remove a relationship between two entities',
+  {
+    from_id: z.string().describe('Source entity ID'),
+    to_id: z.string().describe('Target entity ID'),
+  },
+  async ({ from_id, to_id }) => {
+    if (!isAradProject()) {
+      return { content: [{ type: 'text', text: 'Error: Not an ARAD project.' }] };
+    }
+    const { updateEntity } = await import('../io/files.js');
+    const fromEntity = readEntityById(process.cwd(), from_id);
+    if (!fromEntity) return { content: [{ type: 'text', text: `${from_id} not found.` }] };
+
+    let removed = false;
+    const fields = ['driven_by', 'enables', 'derived_from', 'conflicts_with'] as const;
+    for (const field of fields) {
+      const arr = (fromEntity as any)[field];
+      if (Array.isArray(arr)) {
+        const idx = arr.indexOf(to_id);
+        if (idx !== -1) { arr.splice(idx, 1); removed = true; }
+      }
+    }
+    if ((fromEntity as any).supersedes === to_id) { (fromEntity as any).supersedes = undefined; removed = true; }
+
+    if (!removed) return { content: [{ type: 'text', text: `No relationship found from ${from_id} to ${to_id}.` }] };
+
+    const toEntity = readEntityById(process.cwd(), to_id);
+    if (toEntity && fromEntity.type === 'requirement' && toEntity.type === 'requirement') {
+      const idx = (toEntity as any).conflicts_with?.indexOf(from_id);
+      if (idx !== undefined && idx !== -1) {
+        (toEntity as any).conflicts_with.splice(idx, 1);
+        updateEntity(process.cwd(), toEntity);
+      }
+    }
+
+    updateEntity(process.cwd(), fromEntity);
+    return { content: [{ type: 'text', text: JSON.stringify({ unlinked: `${from_id} → ${to_id}` }, null, 2) }] };
+  }
+);
+
+// ─── Tool: arad_graph ───
+
+server.tool('arad_graph', 'Get graph visualization as text (Mermaid or DOT format)',
+  { format: z.enum(['mermaid', 'dot']).optional() },
+  async ({ format }) => {
+    if (!isAradProject()) {
+      return { content: [{ type: 'text', text: 'Error: Not an ARAD project.' }] };
+    }
+    const entities = readAllEntities();
+    if (entities.length === 0) {
+      return { content: [{ type: 'text', text: 'No entities to graph.' }] };
+    }
+    const graphModule = await import('../commands/graph.js');
+    const { buildGraph } = await import('../graph/graph.js');
+    const graph = buildGraph(entities);
+    const fmt = format ?? 'mermaid';
+    const output = fmt === 'mermaid' ? graphModule.renderMermaid(graph) : graphModule.renderDot(graph);
+    return { content: [{ type: 'text', text: output }] };
+  }
+);
+
 // ─── Start server ───
 
 export async function startMcpServer(): Promise<void> {
