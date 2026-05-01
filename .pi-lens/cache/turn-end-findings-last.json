@@ -1,0 +1,3 @@
+{
+  "signature": "src/mcp/server.ts::🕸️ Impact cascade from edited file:\nChanged symbols: entityToJson, nodeToJson, startMcpServer\nDirect callers: index.ts, server.ts\nCheck next: index.ts\nRisk: exported symbol changed\n📐 Cascade errors in 1 neighbor file(s) — fix before finishing turn:\n<diagnostics file=\"src/index.ts\" reason=\"calls\">\n  line 212, col 56 rule=cascade:2353: Object literal may only specify known properties, and 'clean' does not exist in type '{ force?: bool\n</diagnostics>"
+}

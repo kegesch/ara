@@ -1,6 +1,6 @@
 ---
 name: arad
-description: Track architectural decisions, requirements, and assumptions with ARAD. Use when the user wants to record a decision, define requirements, capture assumptions, trace why a decision was made, find contradictions, validate assumptions, or maintain traceability between architecture choices and their justifications.
+description: Track architectural decisions, requirements, assumptions, and ideas with ARAD. Use when the user wants to record a decision, define requirements, capture assumptions, log ideas, trace why a decision was made, find contradictions, validate assumptions, or maintain traceability between architecture choices and their justifications.
 ---
 
 # ARAD — Architecture, Requirements, Assumptions, Decisions
@@ -20,25 +20,27 @@ The `.arad/` directory will be created in the project root. Commit it to git —
 
 ## When to Use This Skill
 
-| Situation | Action |
-|---|---|
-| User describes a feature or constraint the system must satisfy | `arad add requirement` |
-| User states something they believe to be true but haven't verified | `arad add assumption` |
-| User makes an architectural or design choice | `arad add decision` |
-| User asks "why did we decide X?" | `arad trace D-xxx` |
-| User asks "what happens if Y is wrong?" | `arad impact A-xxx` |
-| User wants to check the health of their architecture docs | `arad check` |
-| User validates an assumption | `arad validate A-xxx` |
-| User wants to connect entities after the fact | `arad link` |
-| User wants to visualize the full graph | `arad graph` |
+| Situation                                                          | Action                 |
+| ------------------------------------------------------------------ | ---------------------- |
+| User describes a feature or constraint the system must satisfy     | `arad add requirement` |
+| User states something they believe to be true but haven't verified | `arad add assumption`  |
+| User makes an architectural or design choice                       | `arad add decision`    |
+| User has a speculative idea or "what if?" thought                  | `arad add idea`        |
+| User asks "why did we decide X?"                                   | `arad trace D-xxx`     |
+| User asks "what happens if Y is wrong?"                            | `arad impact A-xxx`    |
+| User wants to check the health of their architecture docs          | `arad check`           |
+| User validates an assumption                                       | `arad validate A-xxx`  |
+| User wants to connect entities after the fact                      | `arad link`            |
+| User wants to visualize the full graph                             | `arad graph`           |
 
 ## Core Concepts
 
-### Three entity types
+### Four entity types
 
 - **Requirement** (R-xxx) — Something the system must satisfy. Source of truth for what and why.
 - **Assumption** (A-xxx) — Something believed true but not verified. Dangerous when wrong. Can be promoted to a requirement once validated.
 - **Decision** (D-xxx) — An architectural or design choice. Should always trace back to requirements and/or assumptions.
+- **Idea** (I-xxx) — A speculative thought or possibility, not yet committed to. Can be promoted to a requirement or decision when it crystallizes.
 
 ### Relationships
 
@@ -50,6 +52,9 @@ Requirement ◀──▶ conflicts_with           contradiction
 Assumption ──promoted_to──▶ Requirement   validation outcome
 Decision ──enables──▶ Decision            layered decisions
 Decision ──supersedes──▶ Decision         replacement
+Idea ──inspired_by──▶ Any Entity          what sparked it
+Idea ──inspired_by──▶ Idea                idea building on idea
+Idea ──promoted_to──▶ Requirement/Decision graduation
 ```
 
 Every decision should have at least one `driven_by` reference. Decisions without backing are "orphans" — a code smell.
@@ -62,6 +67,18 @@ unvalidated → validated → (promoted to requirement)
     └→ invalidated → (cascade: flag dependent decisions as at risk)
 ```
 
+### Idea lifecycle
+
+```
+explore → parked       (interesting but not now)
+    │
+    ├──→ promoted     (graduated to requirement or decision)
+    │
+    └──→ rejected     (explored and discarded)
+```
+
+Ideas are **non-binding**: they don't appear in strict `arad check` results (no orphan warnings, no contradiction checks). Use them to capture speculative thoughts without ceremony.
+
 **Always surface unvalidated assumptions.** An accepted decision backed by an unvalidated assumption is fragile. Encourage the user to validate or promote assumptions early.
 
 ## Workflow
@@ -72,7 +89,7 @@ unvalidated → validated → (promoted to requirement)
 arad init
 ```
 
-Creates `.arad/` with `requirements/`, `assumptions/`, `decisions/` subdirectories.
+Creates `.arad/` with `requirements/`, `assumptions/`, `decisions/`, `ideas/` subdirectories.
 
 ### 2. Add entities
 
@@ -85,6 +102,9 @@ arad add assumption "Users will have fewer than 1000 records" --tags=scale
 
 # Decisions — architectural choices, linked to what drives them
 arad add decision "Use SQLite for local storage" --status=accepted --driven-by="R-001,A-001"
+
+# Ideas — speculative thoughts, linked to what inspired them
+arad add idea "Use CRDTs for real-time sync" --inspired-by="D-001" --tags=sync
 ```
 
 ### 3. Link entities iteratively
@@ -106,10 +126,12 @@ arad link R-002 R-003 --type=conflicts_with
 ```
 
 Edge type is auto-inferred when unambiguous:
+
 - decision → requirement = `driven_by`
 - decision → assumption = `driven_by`
 - decision → decision = ambiguous, must specify `--type enables` or `--type supersedes`
 - requirement → requirement = ambiguous, must specify `--type derived_from` or `--type conflicts_with`
+- idea → any entity = `inspired_by`
 
 ### 4. Analyze
 
@@ -136,12 +158,16 @@ arad query "driven_by:R-001"
 arad query "tag:storage"
 ```
 
-### 5. Validate assumptions
+### 5. Validate assumptions, promote ideas
 
 ```bash
 arad validate A-001        # Mark as validated
 arad promote A-001         # Promote validated assumption to a formal requirement
 arad invalidate A-001      # Mark as invalidated (shows cascade of affected decisions)
+
+# Ideas can be promoted to either requirements or decisions
+arad promote I-001                # Default: promotes to requirement
+arad promote I-001 --to decision  # Promotes to a proposed decision
 ```
 
 ### 6. Visualize
@@ -171,12 +197,15 @@ driven_by: [R-001, A-003]
 # Decision: Use SQLite for local storage
 
 ## Context
+
 We need local persistence that works offline.
 
 ## Decision
+
 Use SQLite as the embedded database.
 
 ## Consequences
+
 - Single file, easy to version and backup
 - No concurrent write support across processes
 ```
@@ -220,6 +249,8 @@ arad query "tag:storage"                   Filter by tag
 arad query "driven_by:R-001"              Find decisions driven by a specific requirement
 arad query "derived_from:R-001"           Find requirements derived from another
 arad query "id:D-001"                     Find by exact or partial ID
+arad query "inspired_by:D-001"             Find ideas inspired by an entity
+arad query "type:idea status:explore"       Find ideas in exploration
 arad query "type:decision status:accepted sqlite"  Combine modifiers + text
 ```
 

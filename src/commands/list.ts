@@ -1,54 +1,66 @@
 // arad list [type]
-import type { Entity, EntityType } from '../types.js';
-import { readAllEntities, requireAradProject } from '../io/files.js';
-import { formatEntityList } from '../display/format.js';
+
+import { formatEntityList } from "../display/format.js";
+import { readAllEntities, requireAradProject } from "../io/files.js";
+import type { Entity, EntityType } from "../types.js";
 
 export function listCommand(
-  typeFilter?: string,
-  options?: { status?: string; tag?: string },
+	typeFilter?: string,
+	options?: { status?: string; tag?: string },
 ): void {
-  requireAradProject();
+	requireAradProject();
 
-  let entities = readAllEntities();
+	let entities = readAllEntities();
 
-  // Filter by type
-  if (typeFilter) {
-    const validTypes: EntityType[] = ['requirement', 'assumption', 'decision'];
-    if (!validTypes.includes(typeFilter as EntityType)) {
-      console.error(`Invalid type "${typeFilter}". Use: requirement, assumption, decision`);
-      return;
-    }
-    entities = entities.filter(e => e.type === typeFilter);
-  }
+	// Filter by type
+	if (typeFilter) {
+		const validTypes: EntityType[] = [
+			"requirement",
+			"assumption",
+			"decision",
+			"idea",
+		];
+		if (!validTypes.includes(typeFilter as EntityType)) {
+			console.error(
+				`Invalid type "${typeFilter}". Use: requirement, assumption, decision, idea`,
+			);
+			return;
+		}
+		entities = entities.filter((e) => e.type === typeFilter);
+	}
 
-  // Filter by status
-  if (options?.status) {
-    entities = entities.filter(e => e.status === options.status);
-  }
+	// Filter by status
+	if (options?.status) {
+		entities = entities.filter((e) => e.status === options.status);
+	}
 
-  // Filter by tag
-  if (options?.tag) {
-    const tag = options.tag.toLowerCase();
-    entities = entities.filter(e => e.tags.some(t => t.toLowerCase().includes(tag)));
-  }
+	// Filter by tag
+	if (options?.tag) {
+		const tag = options.tag.toLowerCase();
+		entities = entities.filter((e) =>
+			e.tags.some((t) => t.toLowerCase().includes(tag)),
+		);
+	}
 
-  if (entities.length === 0) {
-    console.log('No entities found.');
-    return;
-  }
+	if (entities.length === 0) {
+		console.log("No entities found.");
+		return;
+	}
 
-  // Group by type for display
-  const grouped = new Map<EntityType, Entity[]>();
-  for (const e of entities) {
-    if (!grouped.has(e.type)) grouped.set(e.type, []);
-    grouped.get(e.type)!.push(e);
-  }
+	// Group by type for display
+	const grouped = new Map<EntityType, Entity[]>();
+	for (const e of entities) {
+		if (!grouped.has(e.type)) grouped.set(e.type, []);
+		grouped.get(e.type)!.push(e);
+	}
 
-  const order: EntityType[] = ['requirement', 'assumption', 'decision'];
-  for (const t of order) {
-    const group = grouped.get(t);
-    if (!group || group.length === 0) continue;
-    console.log(`\n${t.charAt(0).toUpperCase() + t.slice(1)}s (${group.length}):`);
-    console.log(formatEntityList(group));
-  }
+	const order: EntityType[] = ["requirement", "assumption", "decision", "idea"];
+	for (const t of order) {
+		const group = grouped.get(t);
+		if (!group || group.length === 0) continue;
+		console.log(
+			`\n${t.charAt(0).toUpperCase() + t.slice(1)}s (${group.length}):`,
+		);
+		console.log(formatEntityList(group));
+	}
 }

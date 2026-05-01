@@ -12,6 +12,7 @@ arad init                # Create .arad/ in your project
 arad add requirement "All data must be encrypted at rest"
 arad add assumption "Users will have fewer than 1000 records"
 arad add decision "Use SQLite for local storage"
+arad add idea "Use CRDTs for real-time sync"
 arad trace D-001          # See what backs a decision
 arad impact A-001         # See what breaks if an assumption is wrong
 arad check                # Find orphans, contradictions, dangling refs
@@ -21,11 +22,12 @@ arad check                # Find orphans, contradictions, dangling refs
 
 ### Entities
 
-| Type | Prefix | What it is |
-|---|---|---|
-| **Requirement** | `R-001` | Something the system must satisfy |
-| **Assumption** | `A-001` | Something believed true but not yet verified |
-| **Decision** | `D-001` | An architectural or design choice |
+| Type            | Prefix  | What it is                                                  |
+| --------------- | ------- | ----------------------------------------------------------- |
+| **Requirement** | `R-001` | Something the system must satisfy                           |
+| **Assumption**  | `A-001` | Something believed true but not yet verified                |
+| **Decision**    | `D-001` | An architectural or design choice                           |
+| **Idea**        | `I-001` | A speculative thought or possibility — not yet committed to |
 
 ### Relationships
 
@@ -37,6 +39,9 @@ Requirement ◀──▶ conflicts_with          (mutual contradiction)
 Assumption ──promoted_to──▶ Requirement  (validated assumption → requirement)
 Decision ──enables──▶ Decision           (layered decisions)
 Decision ──supersedes──▶ Decision        (replacing old decisions)
+Idea ──inspired_by──▶ Any Entity         (what sparked the idea)
+Idea ──inspired_by──▶ Idea               (idea building on idea)
+Idea ──promoted_to──▶ Requirement/Decision (graduated to something concrete)
 ```
 
 ### Key Queries
@@ -45,6 +50,7 @@ Decision ──supersedes──▶ Decision        (replacing old decisions)
 - **Impact** — Reverse traversal. "If this assumption is wrong, what breaks?"
 - **Orphans** — Decisions with no backing requirement or assumption.
 - **Contradictions** — Requirements that conflict with each other.
+- **Ideas** — Speculative thoughts not yet committed to. Excluded from strict checks.
 - **Dangling refs** — References to entities that don't exist.
 
 ### Assumption Lifecycle
@@ -53,6 +59,16 @@ Decision ──supersedes──▶ Decision        (replacing old decisions)
 unvalidated ──▶ validated ──▶ (promoted to requirement)
      │
      └──▶ invalidated ──▶ (cascade: flag dependent decisions)
+```
+
+### Idea Lifecycle
+
+```
+explore ──▶ parked       (interesting but not now)
+    │
+    ├──▶ promoted ──▶ (promoted to requirement or decision)
+    │
+    └──▶ rejected    (explored and discarded)
 ```
 
 ## File Format
@@ -72,12 +88,15 @@ driven_by: [R-001, A-003]
 # Decision: Use SQLite for local storage
 
 ## Context
+
 We need local persistence that works offline and doesn't require a server.
 
 ## Decision
+
 Use SQLite as the embedded database.
 
 ## Consequences
+
 - Single file, easy to version and backup
 - No concurrent write support across processes
 ```
@@ -96,23 +115,34 @@ Use SQLite as the embedded database.
   decisions/
     D-001-use-sqlite.md
     D-002-cache-strategy.md
+  ideas/
+    I-001-crdt-sync.md
+    I-002-offline-first.md
 ```
 
 ## CLI Reference
 
 ```
 arad init                              Initialize .arad/ in current directory
-arad add <type> [title]                Add entity (interactive)
+arad add <type> [title]                Add entity (interactive, type: requirement|assumption|decision|idea)
 arad list [type]                       List entities
 arad show <id>                         Show entity with immediate relationships
 arad edit <id>                         Open entity in $EDITOR
+arad remove <id>                       Remove entity (--force, --clean)
+arad rename <id> <new-id>              Rename entity, updating all references
+arad status                            Quick project health summary
+arad import <path>                     Import ADR markdown files as decisions
 arad trace <id>                        Show dependency tree
 arad impact <id>                       Show what breaks if this changes
 arad check                             Find orphans, contradictions, dangling refs
 arad validate <id>                     Mark assumption as validated
 arad invalidate <id>                   Mark assumption as invalidated
-arad promote <id>                      Promote assumption to requirement
+arad promote <id> [--to <type>]        Promote assumption/idea (default: assumption→requirement, idea→requirement)
+arad link <from> <to>                  Link two entities
+arad unlink <from> <to>               Remove a relationship
 arad query <text>                      Search entities (supports modifiers)
+arad graph                             Visualize graph (mermaid, dot, ascii)
+arad mcp                               Start MCP server (stdio)
 ```
 
 ### Query Syntax

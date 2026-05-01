@@ -1,17 +1,17 @@
 // Terminal display formatting
 
-import type { Entity, EntityType } from '../types';
+import type { Entity, EntityType } from "../types";
 
 const C = {
-  reset: '\x1b[0m',
-  bold: '\x1b[1m',
-  dim: '\x1b[2m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  magenta: '\x1b[35m',
-  cyan: '\x1b[36m',
+	reset: "\x1b[0m",
+	bold: "\x1b[1m",
+	dim: "\x1b[2m",
+	red: "\x1b[31m",
+	green: "\x1b[32m",
+	yellow: "\x1b[33m",
+	blue: "\x1b[34m",
+	magenta: "\x1b[35m",
+	cyan: "\x1b[36m",
 };
 
 const color = (code: string, text: string) => `${code}${text}${C.reset}`;
@@ -24,122 +24,156 @@ export const cyan = (t: string) => color(C.cyan, t);
 export const mag = (t: string) => color(C.magenta, t);
 
 export function typeColor(type: EntityType): string {
-  switch (type) {
-    case 'requirement': return C.cyan;
-    case 'assumption': return C.yellow;
-    case 'decision': return C.green;
-  }
+	switch (type) {
+		case "requirement":
+			return C.cyan;
+		case "assumption":
+			return C.yellow;
+		case "decision":
+			return C.green;
+		case "idea":
+			return C.magenta;
+	}
 }
 
 export function colorId(id: string): string {
-  if (id.startsWith('R-')) return cyan(id);
-  if (id.startsWith('A-')) return yellow(id);
-  if (id.startsWith('D-')) return green(id);
-  return id;
+	if (id.startsWith("R-")) return cyan(id);
+	if (id.startsWith("A-")) return yellow(id);
+	if (id.startsWith("D-")) return green(id);
+	if (id.startsWith("I-")) return mag(id);
+	return id;
 }
 
 export function statusIcon(status: string): string {
-  switch (status) {
-    case 'accepted':
-    case 'validated':
-      return green('✓');
-    case 'proposed':
-    case 'draft':
-    case 'unvalidated':
-      return yellow('○');
-    case 'deprecated':
-    case 'rejected':
-    case 'invalidated':
-      return red('✗');
-    case 'superseded':
-      return dim('→');
-    default:
-      return '·';
-  }
+	switch (status) {
+		case "accepted":
+		case "validated":
+			return green("✓");
+		case "proposed":
+		case "draft":
+		case "unvalidated":
+			return yellow("○");
+		case "deprecated":
+		case "rejected":
+		case "invalidated":
+			return red("✗");
+		case "superseded":
+			return dim("→");
+		case "explore":
+		case "parked":
+			return mag("💡");
+		default:
+			return "·";
+	}
 }
 
 export function formatEntityBrief(entity: Entity): string {
-  const tc = typeColor(entity.type);
-  const icon = statusIcon(entity.status);
-  const id = color(tc, entity.id);
-  const status = dim(`[${entity.status}]`);
-  return `${icon} ${id} ${status} ${entity.title}`;
+	const tc = typeColor(entity.type);
+	const icon = statusIcon(entity.status);
+	const id = color(tc, entity.id);
+	const status = dim(`[${entity.status}]`);
+	return `${icon} ${id} ${status} ${entity.title}`;
 }
 
 export function formatEntityList(entities: Entity[]): string {
-  return entities.map(formatEntityBrief).join('\n');
+	return entities.map(formatEntityBrief).join("\n");
 }
 
 export function formatEntityDetail(entity: Entity): string {
-  const tc = typeColor(entity.type);
-  const lines: string[] = [];
+	const tc = typeColor(entity.type);
+	const lines: string[] = [];
 
-  lines.push(bold(`${entity.id}: ${entity.title}`));
-  lines.push(`${color(tc, entity.type)} · ${statusIcon(entity.status)} ${entity.status} · ${entity.date}`);
+	lines.push(bold(`${entity.id}: ${entity.title}`));
+	lines.push(
+		`${color(tc, entity.type)} · ${statusIcon(entity.status)} ${entity.status} · ${entity.date}`,
+	);
 
-  if (entity.tags.length > 0) {
-    lines.push(`tags: ${entity.tags.map(t => mag(t)).join(', ')}`);
-  }
+	if (entity.tags.length > 0) {
+		lines.push(`tags: ${entity.tags.map((t) => mag(t)).join(", ")}`);
+	}
 
-  switch (entity.type) {
-    case 'requirement':
-      if (entity.derived_from.length > 0)
-        lines.push(`derived from: ${entity.derived_from.map(colorId).join(', ')}`);
-      if (entity.conflicts_with.length > 0)
-        lines.push(`${red('conflicts with')}: ${entity.conflicts_with.map(colorId).join(', ')}`);
-      break;
-    case 'assumption':
-      if (entity.promoted_to)
-        lines.push(`promoted to: ${cyan(entity.promoted_to)}`);
-      break;
-    case 'decision':
-      if (entity.driven_by.length > 0)
-        lines.push(`driven by: ${entity.driven_by.map(colorId).join(', ')}`);
-      if (entity.enables.length > 0)
-        lines.push(`enables: ${entity.enables.map(colorId).join(', ')}`);
-      if (entity.supersedes)
-        lines.push(`supersedes: ${colorId(entity.supersedes)}`);
-      break;
-  }
+	switch (entity.type) {
+		case "requirement":
+			if (entity.derived_from.length > 0)
+				lines.push(
+					`derived from: ${entity.derived_from.map(colorId).join(", ")}`,
+				);
+			if (entity.conflicts_with.length > 0)
+				lines.push(
+					`${red("conflicts with")}: ${entity.conflicts_with.map(colorId).join(", ")}`,
+				);
+			break;
+		case "assumption":
+			if (entity.promoted_to)
+				lines.push(`promoted to: ${cyan(entity.promoted_to)}`);
+			break;
+		case "decision":
+			if (entity.driven_by.length > 0)
+				lines.push(`driven by: ${entity.driven_by.map(colorId).join(", ")}`);
+			if (entity.enables.length > 0)
+				lines.push(`enables: ${entity.enables.map(colorId).join(", ")}`);
+			if (entity.supersedes)
+				lines.push(`supersedes: ${colorId(entity.supersedes)}`);
+			break;
+		case "idea":
+			if (entity.inspired_by.length > 0)
+				lines.push(
+					`inspired by: ${entity.inspired_by.map(colorId).join(", ")}`,
+				);
+			if (entity.promoted_to)
+				lines.push(`promoted to: ${colorId(entity.promoted_to)}`);
+			break;
+	}
 
-  if (entity.body) {
-    lines.push('');
-    lines.push(dim('─'.repeat(50)));
-    lines.push(entity.body);
-  }
+	if (entity.body) {
+		lines.push("");
+		lines.push(dim("─".repeat(50)));
+		lines.push(entity.body);
+	}
 
-  return lines.join('\n');
+	return lines.join("\n");
 }
 
 /**
  * Format a trace tree with Unicode box-drawing characters.
  */
 export function formatTraceTree(
-  node: { entity: Entity; edgeType: string; children: Array<{ entity: Entity; edgeType: string; children: unknown[] }> },
-  prefix: string = '',
-  isLast: boolean = true,
-  isRoot: boolean = true,
+	node: {
+		entity: Entity;
+		edgeType: string;
+		children: Array<{ entity: Entity; edgeType: string; children: unknown[] }>;
+	},
+	prefix: string = "",
+	isLast: boolean = true,
+	isRoot: boolean = true,
 ): string[] {
-  const lines: string[] = [];
-  const { entity, edgeType, children } = node;
-  const tc = typeColor(entity.type);
-  const icon = statusIcon(entity.status);
+	const lines: string[] = [];
+	const { entity, edgeType, children } = node;
+	const tc = typeColor(entity.type);
+	const icon = statusIcon(entity.status);
 
-  let connector = '';
-  if (!isRoot) {
-    connector = isLast ? '└── ' : '├── ';
-  }
+	let connector = "";
+	if (!isRoot) {
+		connector = isLast ? "└── " : "├── ";
+	}
 
-  const edgeLabel = edgeType !== 'root' ? dim(`[${edgeType}] `) : '';
-  lines.push(`${prefix}${connector}${icon} ${color(tc, entity.id)} ${entity.title} ${edgeLabel}`);
+	const edgeLabel = edgeType !== "root" ? dim(`[${edgeType}] `) : "";
+	lines.push(
+		`${prefix}${connector}${icon} ${color(tc, entity.id)} ${entity.title} ${edgeLabel}`,
+	);
 
-  const childPrefix = isRoot ? '' : (isLast ? '    ' : '│   ');
+	const childPrefix = isRoot ? "" : isLast ? "    " : "│   ";
 
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i];
-    const childLines = formatTraceTree(child, prefix + childPrefix, i === children.length - 1, false);
-    lines.push(...childLines);
-  }
+	for (let i = 0; i < children.length; i++) {
+		const child = children[i];
+		const childLines = formatTraceTree(
+			child as any,
+			prefix + childPrefix,
+			i === children.length - 1,
+			false,
+		);
+		lines.push(...childLines);
+	}
 
-  return lines;
+	return lines;
 }

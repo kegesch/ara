@@ -1,0 +1,112 @@
+{
+  "success": true,
+  "clones": [
+    {
+      "fileA": "src\\mcp\\server.ts",
+      "startA": 178,
+      "fileB": "src\\mcp\\server.ts",
+      "startB": 142,
+      "lines": 12,
+      "tokens": 0
+    },
+    {
+      "fileA": "src\\mcp\\server.ts",
+      "startA": 445,
+      "fileB": "src\\mcp\\server.ts",
+      "startB": 411,
+      "lines": 10,
+      "tokens": 0
+    },
+    {
+      "fileA": "src\\mcp\\server.ts",
+      "startA": 492,
+      "fileB": "src\\mcp\\server.ts",
+      "startB": 411,
+      "lines": 9,
+      "tokens": 0
+    },
+    {
+      "fileA": "src\\mcp\\server.ts",
+      "startA": 500,
+      "fileB": "src\\mcp\\server.ts",
+      "startB": 419,
+      "lines": 12,
+      "tokens": 0
+    },
+    {
+      "fileA": "src\\commands\\validate.ts",
+      "startA": 49,
+      "fileB": "src\\commands\\validate.ts",
+      "startB": 21,
+      "lines": 11,
+      "tokens": 0
+    },
+    {
+      "fileA": "src\\commands\\validate.ts",
+      "startA": 94,
+      "fileB": "src\\commands\\validate.ts",
+      "startB": 19,
+      "lines": 11,
+      "tokens": 0
+    },
+    {
+      "fileA": "src\\commands\\validate.ts",
+      "startA": 126,
+      "fileB": "src\\mcp\\server.ts",
+      "startB": 521,
+      "lines": 21,
+      "tokens": 0
+    },
+    {
+      "fileA": "src\\commands\\validate.ts",
+      "startA": 188,
+      "fileB": "src\\mcp\\server.ts",
+      "startB": 526,
+      "lines": 11,
+      "tokens": 0
+    },
+    {
+      "fileA": "src\\commands\\rename.ts",
+      "startA": 26,
+      "fileB": "src\\commands\\validate.ts",
+      "startB": 19,
+      "lines": 8,
+      "tokens": 0
+    },
+    {
+      "fileA": "src\\commands\\remove.ts",
+      "startA": 16,
+      "fileB": "src\\commands\\rename.ts",
+      "startB": 25,
+      "lines": 12,
+      "tokens": 0
+    },
+    {
+      "fileA": "src\\commands\\remove.ts",
+      "startA": 127,
+      "fileB": "src\\commands\\rename.ts",
+      "startB": 151,
+      "lines": 8,
+      "tokens": 0
+    },
+    {
+      "fileA": "src\\commands\\link.ts",
+      "startA": 218,
+      "fileB": "src\\commands\\link.ts",
+      "startB": 84,
+      "lines": 7,
+      "tokens": 0
+    },
+    {
+      "fileA": "src\\commands\\graph.ts",
+      "startA": 179,
+      "fileB": "src\\commands\\graph.ts",
+      "startB": 111,
+      "lines": 9,
+      "tokens": 0
+    }
+  ],
+  "duplicatedLines": 128,
+  "totalLines": 4524,
+  "percentage": 2.83
+}

@@ -1,0 +1,22 @@
+{
+  "validateCommit": {
+    "mode": "strict",
+    "batchCount": 3
+  },
+  "denyList": {
+    "enabled": true,
+    "extraPatterns": []
+  },
+  "promptReminder": {
+    "enabled": true
+  },
+  "subagentHooks": {
+    "validateCommitOnExplore": false,
+    "validateCommitOnWork": true,
+    "validateCommitOnUnknown": true
+  },
+  "overrides": {
+    "validators": {},
+    "reminders": {}
+  }
+}
