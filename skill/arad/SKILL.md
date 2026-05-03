@@ -105,6 +105,22 @@ arad add decision "Use SQLite for local storage" --status=accepted --driven-by="
 
 # Ideas — speculative thoughts, linked to what inspired them
 arad add idea "Use CRDTs for real-time sync" --inspired-by="D-001" --tags=sync
+
+# With body content (non-interactive / agent use)
+arad add decision "Use SQLite" --body='# Decision: Use SQLite
+
+## Context
+Need offline persistence.
+
+## Decision
+Use SQLite as embedded DB.
+
+## Consequences
+Single file, no concurrent writes.'
+
+# Body from file or stdin
+echo "..." | arad add assumption "Low latency" --body-file=-
+arad add requirement "Auth" --body-file=auth-req.md
 ```
 
 ### 3. Link entities iteratively

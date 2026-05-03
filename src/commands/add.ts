@@ -45,6 +45,8 @@ interface AddOptions {
 	enables?: string;
 	supersedes?: string;
 	inspiredBy?: string;
+	body?: string;
+	bodyFile?: string;
 }
 
 export async function addCommand(
@@ -228,12 +230,36 @@ export async function addCommand(
 		}
 	}
 
-	// Open editor for body (only interactive)
-	if (isInteractive) {
+	// Resolve body content
+	const templateBody = config.template(title.trim());
+
+	if (options?.bodyFile) {
+		// --body-file takes precedence
+		if (options.bodyFile === "-") {
+			// Read from stdin
+			const chunks: Buffer[] = [];
+			for await (const chunk of process.stdin) {
+				chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+			}
+			entity.body =
+				Buffer.concat(chunks).toString("utf-8").trim() || templateBody;
+		} else {
+			const resolvedPath = join(process.cwd(), options.bodyFile);
+			if (!existsSync(resolvedPath)) {
+				console.error(`Body file not found: ${options.bodyFile}`);
+				process.exit(1);
+			}
+			entity.body = readFileSync(resolvedPath, "utf-8").trim();
+		}
+	} else if (options?.body) {
+		// --body inline
+		entity.body = options.body;
+	} else if (isInteractive) {
+		// Interactive: offer editor
 		const editAnswer = await prompt("Open editor for description? [y/N]: ");
 		if (editAnswer.toLowerCase() === "y") {
 			const tmpFile = join(process.cwd(), ".arad", `tmp-${id}.md`);
-			writeFileSync(tmpFile, config.template(title.trim()), "utf-8");
+			writeFileSync(tmpFile, templateBody, "utf-8");
 			try {
 				const editor = process.env.EDITOR || process.env.VISUAL || "vi";
 				execSync(`${editor} "${tmpFile}"`, { stdio: "inherit" });
@@ -242,10 +268,10 @@ export async function addCommand(
 				if (existsSync(tmpFile)) unlinkSync(tmpFile);
 			}
 		} else {
-			entity.body = config.template(title.trim());
+			entity.body = templateBody;
 		}
 	} else {
-		entity.body = config.template(title.trim());
+		entity.body = templateBody;
 	}
 
 	const relPath = writeEntity(process.cwd(), entity);

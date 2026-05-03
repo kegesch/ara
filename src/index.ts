@@ -54,6 +54,8 @@ program
 	.option("--enables <ids>", "Comma-separated decision IDs this enables")
 	.option("--supersedes <id>", "Decision ID this supersedes")
 	.option("--inspired-by <ids>", "Comma-separated IDs that inspired this idea")
+	.option("--body <text>", "Body content (markdown)")
+	.option("--body-file <path>", "Read body from file (use - for stdin)")
 	.action(
 		async (
 			type: string,
