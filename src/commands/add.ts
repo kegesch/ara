@@ -40,6 +40,7 @@ interface AddOptions {
 	drivenBy?: string;
 	status?: string;
 	tags?: string;
+	context?: string;
 	derivedFrom?: string;
 	conflictsWith?: string;
 	enables?: string;
@@ -105,6 +106,12 @@ export async function addCommand(
 				.filter(Boolean)
 		: [];
 
+	// Context
+	let context = options?.context?.trim() || "";
+	if (!context && isInteractive) {
+		context = await prompt("Context (e.g. billing, fulfillment): ");
+	}
+
 	// Validate referenced IDs
 	const allEntities = readAllEntities();
 	const entityIds = new Set(allEntities.map((e) => e.id));
@@ -155,8 +162,10 @@ export async function addCommand(
 				status: status as any,
 				date,
 				tags,
+				context: context || undefined,
 				derived_from: derived,
 				conflicts_with: conflicts,
+				requested_by: [],
 				body: "",
 				filePath: "",
 			};
@@ -170,6 +179,7 @@ export async function addCommand(
 				status: status as any,
 				date,
 				tags,
+				context: context || undefined,
 				body: "",
 				filePath: "",
 			};
@@ -200,9 +210,11 @@ export async function addCommand(
 				status: status as any,
 				date,
 				tags,
+				context: context || undefined,
 				driven_by,
 				enables,
 				supersedes: supersedesInput.trim() || undefined,
+				affects: [],
 				body: "",
 				filePath: "",
 			};
@@ -222,7 +234,51 @@ export async function addCommand(
 				status: status as any,
 				date,
 				tags,
+				context: context || undefined,
 				inspired_by,
+				body: "",
+				filePath: "",
+			};
+			break;
+		}
+		case "stakeholder": {
+			entity = {
+				type: "stakeholder",
+				id,
+				title: title.trim(),
+				status: status as any,
+				date,
+				tags,
+				context: context || undefined,
+				body: "",
+				filePath: "",
+			};
+			break;
+		}
+		case "risk": {
+			entity = {
+				type: "risk",
+				id,
+				title: title.trim(),
+				status: status as any,
+				date,
+				tags,
+				context: context || undefined,
+				mitigated_by: [],
+				body: "",
+				filePath: "",
+			};
+			break;
+		}
+		case "term": {
+			entity = {
+				type: "term",
+				id,
+				title: title.trim(),
+				status: status as any,
+				date,
+				tags,
+				context: context || undefined,
 				body: "",
 				filePath: "",
 			};

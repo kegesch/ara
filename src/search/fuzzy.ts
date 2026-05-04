@@ -132,6 +132,8 @@ function scoreModifier(entity: Entity, key: string, value: string): number {
 				entity.inspired_by.some((d) => d.toLowerCase().includes(value))
 				? 35
 				: 0;
+		case "context":
+			return entity.context?.toLowerCase().includes(value) ? 30 : 0;
 		default:
 			return 0;
 	}

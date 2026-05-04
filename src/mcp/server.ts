@@ -2,7 +2,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { type CheckResult, runCheck } from "../commands/check.js";
+import { runCheck } from "../commands/check.js";
 import {
 	buildGraph,
 	getDependencies,
@@ -18,14 +18,8 @@ import {
 	writeEntity,
 } from "../io/files.js";
 import { searchEntities } from "../search/fuzzy.js";
-import type {
-	Assumption,
-	Decision,
-	Entity,
-	EntityType,
-	Idea,
-} from "../types.js";
-import { ENTITY_CONFIG, getTypeFromId } from "../types.js";
+import type { Entity } from "../types.js";
+import { ENTITY_CONFIG } from "../types.js";
 
 const server = new McpServer({
 	name: "arad",
@@ -41,10 +35,12 @@ function entityToJson(entity: Entity) {
 		status: entity.status,
 		date: entity.date,
 		tags: entity.tags,
+		...(entity.context ? { context: entity.context } : {}),
 		...(entity.type === "requirement"
 			? {
 					derived_from: (entity as any).derived_from,
 					conflicts_with: (entity as any).conflicts_with,
+					requested_by: (entity as any).requested_by,
 				}
 			: {}),
 		...(entity.type === "assumption"
@@ -57,12 +53,18 @@ function entityToJson(entity: Entity) {
 					driven_by: (entity as any).driven_by,
 					enables: (entity as any).enables,
 					supersedes: (entity as any).supersedes,
+					affects: (entity as any).affects,
 				}
 			: {}),
 		...(entity.type === "idea"
 			? {
 					inspired_by: (entity as any).inspired_by,
 					promoted_to: (entity as any).promoted_to,
+				}
+			: {}),
+		...(entity.type === "risk"
+			? {
+					mitigated_by: (entity as any).mitigated_by,
 				}
 			: {}),
 	};
@@ -72,11 +74,22 @@ function entityToJson(entity: Entity) {
 
 server.tool(
 	"arad_list",
-	"List all ARAD entities, optionally filtered by type",
+	"List all ARAD entities, optionally filtered by type and/or context",
 	{
-		type: z.enum(["requirement", "assumption", "decision", "idea"]).optional(),
+		type: z
+			.enum([
+				"requirement",
+				"assumption",
+				"decision",
+				"idea",
+				"stakeholder",
+				"risk",
+				"term",
+			])
+			.optional(),
+		context: z.string().optional().describe("Filter by context"),
 	},
-	async ({ type }) => {
+	async ({ type, context }) => {
 		if (!isAradProject()) {
 			return {
 				content: [
@@ -89,6 +102,10 @@ server.tool(
 		}
 		let entities = readAllEntities();
 		if (type) entities = entities.filter((e) => e.type === type);
+		if (context)
+			entities = entities.filter((e) =>
+				e.context?.toLowerCase().includes(context.toLowerCase()),
+			);
 		return {
 			content: [
 				{
@@ -211,14 +228,16 @@ server.tool(
 server.tool(
 	"arad_check",
 	"Run health check: find orphans, contradictions, dangling refs, unvalidated assumptions",
-	{},
-	async () => {
+	{
+		context: z.string().optional().describe("Filter by context"),
+	},
+	async ({ context }) => {
 		if (!isAradProject()) {
 			return {
 				content: [{ type: "text", text: "Error: Not an ARAD project." }],
 			};
 		}
-		const result = runCheck();
+		const result = runCheck(context);
 		return {
 			content: [
 				{
@@ -269,7 +288,15 @@ server.tool(
 	"arad_add",
 	"Add a new entity (requirement, assumption, decision, or idea)",
 	{
-		type: z.enum(["requirement", "assumption", "decision", "idea"]),
+		type: z.enum([
+			"requirement",
+			"assumption",
+			"decision",
+			"idea",
+			"stakeholder",
+			"risk",
+			"term",
+		]),
 		title: z.string().describe("Entity title"),
 		status: z
 			.string()
@@ -288,6 +315,10 @@ server.tool(
 			.string()
 			.optional()
 			.describe("Comma-separated IDs that inspired this idea"),
+		context: z
+			.string()
+			.optional()
+			.describe("Context (e.g. billing, fulfillment)"),
 	},
 	async ({
 		type,
@@ -297,6 +328,7 @@ server.tool(
 		driven_by,
 		derived_from,
 		inspired_by,
+		context,
 	}) => {
 		if (!isAradProject()) {
 			return {
@@ -317,15 +349,22 @@ server.tool(
 
 		let entity: Entity;
 
+		const baseFields = {
+			id,
+			title,
+			date,
+			tags: entityTags,
+			context: context || undefined,
+			body: "",
+			filePath: "",
+		};
+
 		switch (type) {
 			case "requirement":
 				entity = {
 					type: "requirement",
-					id,
-					title,
+					...baseFields,
 					status: entityStatus as any,
-					date,
-					tags: entityTags,
 					derived_from: derived_from
 						? derived_from
 								.split(",")
@@ -333,30 +372,21 @@ server.tool(
 								.filter(Boolean)
 						: [],
 					conflicts_with: [],
-					body: "",
-					filePath: "",
+					requested_by: [],
 				};
 				break;
 			case "assumption":
 				entity = {
 					type: "assumption",
-					id,
-					title,
+					...baseFields,
 					status: entityStatus as any,
-					date,
-					tags: entityTags,
-					body: "",
-					filePath: "",
 				};
 				break;
 			case "decision":
 				entity = {
 					type: "decision",
-					id,
-					title,
+					...baseFields,
 					status: entityStatus as any,
-					date,
-					tags: entityTags,
 					driven_by: driven_by
 						? driven_by
 								.split(",")
@@ -364,26 +394,42 @@ server.tool(
 								.filter(Boolean)
 						: [],
 					enables: [],
-					body: "",
-					filePath: "",
+					affects: [],
 				};
 				break;
 			case "idea":
 				entity = {
 					type: "idea",
-					id,
-					title,
+					...baseFields,
 					status: entityStatus as any,
-					date,
-					tags: entityTags,
 					inspired_by: inspired_by
 						? inspired_by
 								.split(",")
 								.map((s) => s.trim())
 								.filter(Boolean)
 						: [],
-					body: "",
-					filePath: "",
+				};
+				break;
+			case "stakeholder":
+				entity = {
+					type: "stakeholder",
+					...baseFields,
+					status: entityStatus as any,
+				};
+				break;
+			case "risk":
+				entity = {
+					type: "risk",
+					...baseFields,
+					status: entityStatus as any,
+					mitigated_by: [],
+				};
+				break;
+			case "term":
+				entity = {
+					type: "term",
+					...baseFields,
+					status: entityStatus as any,
 				};
 				break;
 		}
@@ -528,6 +574,7 @@ server.tool(
 			tags: [...entity.tags],
 			derived_from: [],
 			conflicts_with: [],
+			requested_by: [],
 			body: entity.body,
 			filePath: "",
 		};

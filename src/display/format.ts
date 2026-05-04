@@ -33,6 +33,12 @@ export function typeColor(type: EntityType): string {
 			return C.green;
 		case "idea":
 			return C.magenta;
+		case "stakeholder":
+			return C.blue;
+		case "risk":
+			return C.red;
+		case "term":
+			return C.cyan;
 	}
 }
 
@@ -41,6 +47,9 @@ export function colorId(id: string): string {
 	if (id.startsWith("A-")) return yellow(id);
 	if (id.startsWith("D-")) return green(id);
 	if (id.startsWith("I-")) return mag(id);
+	if (id.startsWith("S-")) return color(C.blue, id);
+	if (id.startsWith("K-")) return red(id);
+	if (id.startsWith("T-")) return cyan(id);
 	return id;
 }
 
@@ -62,6 +71,20 @@ export function statusIcon(status: string): string {
 		case "explore":
 		case "parked":
 			return mag("💡");
+		case "active":
+			return green("👥");
+		case "inactive":
+			return dim("👥");
+		case "identified":
+			return yellow("⚠");
+		case "mitigated":
+			return green("✓");
+		case "accepted":
+			return dim("⚠");
+		case "materialized":
+			return red("⚠");
+		case "closed":
+			return dim("✓");
 		default:
 			return "·";
 	}
@@ -90,6 +113,10 @@ export function formatEntityDetail(entity: Entity): string {
 
 	if (entity.tags.length > 0) {
 		lines.push(`tags: ${entity.tags.map((t) => mag(t)).join(", ")}`);
+	}
+
+	if (entity.context) {
+		lines.push(`context: ${bold(entity.context)}`);
 	}
 
 	switch (entity.type) {

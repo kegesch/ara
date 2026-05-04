@@ -1,8 +1,7 @@
 // arad link/unlink <from-id> <to-id> [--type <edge-type>]
 
-import { bold, colorId, dim, green, red, yellow } from "../display/format.js";
+import { colorId, dim, green, red, yellow } from "../display/format.js";
 import {
-	readAllEntities,
 	readEntityById,
 	requireAradProject,
 	updateEntity,
@@ -14,7 +13,6 @@ import type {
 	EntityType,
 	Requirement,
 } from "../types.js";
-import { getTypeFromId } from "../types.js";
 
 /**
  * Which edge types are valid for each (fromType, toType) pair.
@@ -25,11 +23,14 @@ export const VALID_EDGES: Record<string, EdgeType[]> = {
 	"decision-assumption": ["driven_by"],
 	"decision-decision": ["enables", "supersedes"],
 	"decision-idea": ["driven_by"],
+	"decision-stakeholder": ["affects"],
 	"requirement-requirement": ["derived_from", "conflicts_with"],
+	"requirement-stakeholder": ["requested_by"],
 	"idea-requirement": ["inspired_by"],
 	"idea-assumption": ["inspired_by"],
 	"idea-decision": ["inspired_by"],
 	"idea-idea": ["inspired_by"],
+	"risk-decision": ["mitigated_by"],
 };
 
 /**
@@ -46,16 +47,23 @@ function getRelField(
 			if (edgeType === "enables") return { field: "enables", isArray: true };
 			if (edgeType === "supersedes")
 				return { field: "supersedes", isArray: false };
+			if (edgeType === "affects") return { field: "affects", isArray: true };
 			return null;
 		case "requirement":
 			if (edgeType === "derived_from")
 				return { field: "derived_from", isArray: true };
 			if (edgeType === "conflicts_with")
 				return { field: "conflicts_with", isArray: true };
+			if (edgeType === "requested_by")
+				return { field: "requested_by", isArray: true };
 			return null;
 		case "idea":
 			if (edgeType === "inspired_by")
 				return { field: "inspired_by", isArray: true };
+			return null;
+		case "risk":
+			if (edgeType === "mitigated_by")
+				return { field: "mitigated_by", isArray: true };
 			return null;
 		default:
 			return null;
@@ -294,11 +302,13 @@ export function unlinkCommand(
 function getAllRelFields(entity: Entity): EdgeType[] {
 	switch (entity.type) {
 		case "decision":
-			return ["driven_by", "enables", "supersedes"];
+			return ["driven_by", "enables", "supersedes", "affects"];
 		case "requirement":
-			return ["derived_from", "conflicts_with"];
+			return ["derived_from", "conflicts_with", "requested_by"];
 		case "idea":
 			return ["inspired_by"];
+		case "risk":
+			return ["mitigated_by"];
 		default:
 			return [];
 	}

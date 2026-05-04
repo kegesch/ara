@@ -38,6 +38,9 @@ export function readAllEntities(dir: string = process.cwd()): Entity[] {
 		"assumption",
 		"decision",
 		"idea",
+		"stakeholder",
+		"risk",
+		"term",
 	] as EntityType[]) {
 		const folder = join(aradPath, ENTITY_CONFIG[type].folder);
 		if (!existsSync(folder)) continue;
@@ -154,5 +157,8 @@ export function initAradDir(dir: string, name: string): void {
 	mkdirSync(join(aradPath, "assumptions"), { recursive: true });
 	mkdirSync(join(aradPath, "decisions"), { recursive: true });
 	mkdirSync(join(aradPath, "ideas"), { recursive: true });
+	mkdirSync(join(aradPath, "stakeholders"), { recursive: true });
+	mkdirSync(join(aradPath, "risks"), { recursive: true });
+	mkdirSync(join(aradPath, "terms"), { recursive: true });
 	writeFileSync(join(aradPath, "arad.yaml"), `name: ${name}\n`, "utf-8");
 }

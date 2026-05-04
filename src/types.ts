@@ -1,6 +1,13 @@
 // Core type definitions for ARAD
 
-export type EntityType = "requirement" | "assumption" | "decision" | "idea";
+export type EntityType =
+	| "requirement"
+	| "assumption"
+	| "decision"
+	| "idea"
+	| "stakeholder"
+	| "risk"
+	| "term";
 
 export type RequirementStatus =
 	| "draft"
@@ -14,13 +21,24 @@ export type DecisionStatus =
 	| "deprecated"
 	| "superseded";
 export type IdeaStatus = "explore" | "parked" | "rejected" | "promoted";
+export type StakeholderStatus = "active" | "inactive";
+export type RiskStatus =
+	| "identified"
+	| "mitigated"
+	| "accepted"
+	| "materialized"
+	| "closed";
+export type TermStatus = "draft" | "accepted" | "deprecated";
 export type EntityStatus =
 	| RequirementStatus
 	| AssumptionStatus
 	| DecisionStatus
-	| IdeaStatus;
+	| IdeaStatus
+	| StakeholderStatus
+	| RiskStatus
+	| TermStatus;
 
-export type EntityTypePrefix = "R" | "A" | "D" | "I";
+export type EntityTypePrefix = "R" | "A" | "D" | "I" | "S" | "K" | "T";
 
 export interface EntityBase {
 	id: string;
@@ -29,6 +47,7 @@ export interface EntityBase {
 	tags: string[];
 	body: string;
 	filePath: string;
+	context?: string;
 }
 
 export interface Requirement extends EntityBase {
@@ -36,6 +55,7 @@ export interface Requirement extends EntityBase {
 	status: RequirementStatus;
 	derived_from: string[];
 	conflicts_with: string[];
+	requested_by: string[];
 }
 
 export interface Assumption extends EntityBase {
@@ -50,6 +70,7 @@ export interface Decision extends EntityBase {
 	driven_by: string[];
 	enables: string[];
 	supersedes?: string;
+	affects: string[];
 }
 
 export interface Idea extends EntityBase {
@@ -59,7 +80,30 @@ export interface Idea extends EntityBase {
 	promoted_to?: string;
 }
 
-export type Entity = Requirement | Assumption | Decision | Idea;
+export interface Stakeholder extends EntityBase {
+	type: "stakeholder";
+	status: StakeholderStatus;
+}
+
+export interface Risk extends EntityBase {
+	type: "risk";
+	status: RiskStatus;
+	mitigated_by: string[];
+}
+
+export interface Term extends EntityBase {
+	type: "term";
+	status: TermStatus;
+}
+
+export type Entity =
+	| Requirement
+	| Assumption
+	| Decision
+	| Idea
+	| Stakeholder
+	| Risk
+	| Term;
 
 export type EdgeType =
 	| "driven_by"
@@ -68,7 +112,11 @@ export type EdgeType =
 	| "enables"
 	| "supersedes"
 	| "promoted_to"
-	| "inspired_by";
+	| "inspired_by"
+	| "requested_by"
+	| "affects"
+	| "mitigated_by"
+	| "disambiguates_from";
 
 export interface Edge {
 	from: string;
@@ -81,6 +129,7 @@ export interface AradGraph {
 	edges: Edge[];
 	outgoing: Map<string, Edge[]>;
 	incoming: Map<string, Edge[]>;
+	byContext: Map<string, Entity[]>;
 }
 
 export const ENTITY_CONFIG: Record<
@@ -168,6 +217,69 @@ export const ENTITY_CONFIG: Record<
 				"(What needs to be answered before this can become a decision/requirement?)",
 			].join("\n"),
 	},
+	stakeholder: {
+		prefix: "S",
+		folder: "stakeholders",
+		statuses: ["active", "inactive"],
+		template: (title) =>
+			[
+				`# Stakeholder: ${title}`,
+				"",
+				"## Description",
+				"",
+				"(Who is this stakeholder? Team, role, or group)",
+				"",
+				"## Responsibilities",
+				"",
+				"(What do they care about? What decisions affect them?)",
+			].join("\n"),
+	},
+	risk: {
+		prefix: "K",
+		folder: "risks",
+		statuses: ["identified", "mitigated", "accepted", "materialized", "closed"],
+		template: (title) =>
+			[
+				`# Risk: ${title}`,
+				"",
+				"## Description",
+				"",
+				"(Describe the risk)",
+				"",
+				"## Likelihood",
+				"",
+				"(How likely is this to occur? High/Medium/Low)",
+				"",
+				"## Impact",
+				"",
+				"(What happens if this materializes?)",
+				"",
+				"## Mitigation",
+				"",
+				"(How can this risk be reduced or managed?)",
+			].join("\n"),
+	},
+	term: {
+		prefix: "T",
+		folder: "terms",
+		statuses: ["draft", "accepted", "deprecated"],
+		template: (title) =>
+			[
+				`# Term: ${title}`,
+				"",
+				"## Definition",
+				"",
+				"(What does this term mean in this project's context?)",
+				"",
+				"## Examples",
+				"",
+				"(Examples of usage)",
+				"",
+				"## Disambiguation",
+				"",
+				"(How does this differ from related terms?)",
+			].join("\n"),
+	},
 };
 
 export function getTypeFromId(id: string): EntityType {
@@ -175,5 +287,10 @@ export function getTypeFromId(id: string): EntityType {
 	if (id.startsWith("A-")) return "assumption";
 	if (id.startsWith("D-")) return "decision";
 	if (id.startsWith("I-")) return "idea";
-	throw new Error(`Unknown ID prefix in "${id}". Expected R-, A-, D-, or I-.`);
+	if (id.startsWith("S-")) return "stakeholder";
+	if (id.startsWith("K-")) return "risk";
+	if (id.startsWith("T-")) return "term";
+	throw new Error(
+		`Unknown ID prefix in "${id}". Expected R-, A-, D-, I-, S-, K-, or T-.`,
+	);
 }

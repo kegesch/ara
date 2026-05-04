@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import {
 	buildGraph,
@@ -23,6 +23,8 @@ import type {
 	Entity,
 	Idea,
 	Requirement,
+	Risk,
+	Stakeholder,
 } from "../src/types";
 
 const TMP = join(import.meta.dir, "_tmp_graph");
@@ -110,6 +112,7 @@ function makeEntities(): Entity[] {
 		filePath: "",
 		derived_from: [],
 		conflicts_with: [],
+		requested_by: [],
 	};
 	const r2: Requirement = {
 		type: "requirement",
@@ -122,6 +125,7 @@ function makeEntities(): Entity[] {
 		filePath: "",
 		derived_from: [],
 		conflicts_with: ["R-003"],
+		requested_by: [],
 	};
 	const r3: Requirement = {
 		type: "requirement",
@@ -134,6 +138,7 @@ function makeEntities(): Entity[] {
 		filePath: "",
 		derived_from: [],
 		conflicts_with: ["R-002"],
+		requested_by: [],
 	};
 	const a1: Assumption = {
 		type: "assumption",
@@ -156,6 +161,7 @@ function makeEntities(): Entity[] {
 		filePath: "",
 		driven_by: ["R-001", "R-002", "A-001"],
 		enables: ["D-002"],
+		affects: [],
 	};
 	const d2: Decision = {
 		type: "decision",
@@ -168,6 +174,7 @@ function makeEntities(): Entity[] {
 		filePath: "",
 		driven_by: ["D-001"],
 		enables: [],
+		affects: [],
 	};
 	const d3: Decision = {
 		type: "decision",
@@ -180,6 +187,7 @@ function makeEntities(): Entity[] {
 		filePath: "",
 		driven_by: [],
 		enables: [],
+		affects: [],
 	};
 	return [r1, r2, r3, a1, d1, d2, d3];
 }
@@ -355,6 +363,7 @@ describe("link validation", () => {
 			filePath: "",
 			derived_from: [],
 			conflicts_with: [],
+			requested_by: [],
 		};
 		const d1: Decision = {
 			type: "decision",
@@ -367,6 +376,7 @@ describe("link validation", () => {
 			filePath: "",
 			driven_by: [],
 			enables: [],
+			affects: [],
 		};
 
 		// Before linking
@@ -392,6 +402,7 @@ describe("link validation", () => {
 			filePath: "",
 			derived_from: [],
 			conflicts_with: ["R-002"],
+			requested_by: [],
 		};
 		const r2: Requirement = {
 			type: "requirement",
@@ -404,6 +415,7 @@ describe("link validation", () => {
 			filePath: "",
 			derived_from: [],
 			conflicts_with: ["R-001"],
+			requested_by: [],
 		};
 		const g = buildGraph([r1, r2]);
 		const contradictions = findContradictions(g);
@@ -433,6 +445,7 @@ describe("heuristic analysis", () => {
 			filePath: "",
 			derived_from: [],
 			conflicts_with: [],
+			requested_by: [],
 		};
 		const r2: Requirement = {
 			type: "requirement",
@@ -445,6 +458,7 @@ describe("heuristic analysis", () => {
 			filePath: "",
 			derived_from: [],
 			conflicts_with: [],
+			requested_by: [],
 		};
 		const g = buildGraph([r1, r2]);
 		const possibles = findPossibleContradictions(g);
@@ -470,6 +484,7 @@ describe("heuristic analysis", () => {
 			filePath: "",
 			derived_from: [],
 			conflicts_with: [],
+			requested_by: [],
 		};
 		const g = buildGraph([r1]);
 		const possibles = findPossibleContradictions(g);
@@ -489,6 +504,7 @@ describe("heuristic analysis", () => {
 			filePath: "",
 			derived_from: [],
 			conflicts_with: [],
+			requested_by: [],
 		};
 		const r2: Requirement = {
 			type: "requirement",
@@ -501,6 +517,7 @@ describe("heuristic analysis", () => {
 			filePath: "",
 			derived_from: [],
 			conflicts_with: [],
+			requested_by: [],
 		};
 		const g = buildGraph([r1, r2]);
 		const dups = findPossibleDuplicates(g, 0.5);
@@ -520,6 +537,7 @@ describe("heuristic analysis", () => {
 			filePath: "",
 			derived_from: [],
 			conflicts_with: [],
+			requested_by: [],
 		};
 		const r2: Requirement = {
 			type: "requirement",
@@ -532,6 +550,7 @@ describe("heuristic analysis", () => {
 			filePath: "",
 			derived_from: [],
 			conflicts_with: [],
+			requested_by: [],
 		};
 		const g = buildGraph([r1, r2]);
 		const dups = findPossibleDuplicates(g, 0.6);
@@ -550,6 +569,7 @@ describe("heuristic analysis", () => {
 			filePath: "",
 			derived_from: [],
 			conflicts_with: [],
+			requested_by: [],
 		};
 		const d1: Decision = {
 			type: "decision",
@@ -562,6 +582,7 @@ describe("heuristic analysis", () => {
 			filePath: "",
 			driven_by: ["R-001"],
 			enables: [],
+			affects: [],
 		};
 		const g = buildGraph([r1, d1]);
 		const anomalies = findStatusAnomalies(g);
@@ -591,6 +612,7 @@ describe("heuristic analysis", () => {
 			filePath: "",
 			driven_by: ["A-001"],
 			enables: [],
+			affects: [],
 		};
 		const g = buildGraph([a1, d1]);
 		const anomalies = findStatusAnomalies(g);
@@ -610,6 +632,7 @@ describe("heuristic analysis", () => {
 			filePath: "",
 			derived_from: [],
 			conflicts_with: [],
+			requested_by: [],
 		};
 		const r2: Requirement = {
 			type: "requirement",
@@ -622,6 +645,7 @@ describe("heuristic analysis", () => {
 			filePath: "",
 			derived_from: [],
 			conflicts_with: [],
+			requested_by: [],
 		};
 		const d1: Decision = {
 			type: "decision",
@@ -634,6 +658,7 @@ describe("heuristic analysis", () => {
 			filePath: "",
 			driven_by: ["R-001"],
 			enables: [],
+			affects: [],
 		};
 		const g = buildGraph([r1, r2, d1]);
 		const orphans = findOrphanRequirements(g);
@@ -652,6 +677,7 @@ describe("heuristic analysis", () => {
 			filePath: "",
 			derived_from: [],
 			conflicts_with: [],
+			requested_by: [],
 		};
 		const g = buildGraph([r1]);
 		const orphans = findOrphanRequirements(g);
@@ -661,9 +687,9 @@ describe("heuristic analysis", () => {
 
 // ─── Idea entity type ───
 
-describe('idea type', () => {
-  test('parses an idea with inspired_by', () => {
-    const content = `---
+describe("idea type", () => {
+	test("parses an idea with inspired_by", () => {
+		const content = `---
 id: I-001
 title: "Use CRDTs for sync"
 status: explore
@@ -676,20 +702,20 @@ inspired_by: [D-001, R-002]
 
 Some body text.
 `;
-    const entity = parseEntity(content, 'ideas/I-001-use-crdts.md');
-    expect(entity.type).toBe('idea');
-    expect(entity.id).toBe('I-001');
-    expect(entity.title).toBe('Use CRDTs for sync');
-    expect(entity.status).toBe('explore');
-    expect(entity.tags).toEqual(['sync', 'collaboration']);
-    if (entity.type === 'idea') {
-      expect(entity.inspired_by).toEqual(['D-001', 'R-002']);
-      expect(entity.promoted_to).toBeUndefined();
-    }
-  });
+		const entity = parseEntity(content, "ideas/I-001-use-crdts.md");
+		expect(entity.type).toBe("idea");
+		expect(entity.id).toBe("I-001");
+		expect(entity.title).toBe("Use CRDTs for sync");
+		expect(entity.status).toBe("explore");
+		expect(entity.tags).toEqual(["sync", "collaboration"]);
+		if (entity.type === "idea") {
+			expect(entity.inspired_by).toEqual(["D-001", "R-002"]);
+			expect(entity.promoted_to).toBeUndefined();
+		}
+	});
 
-  test('parses an idea with promoted_to', () => {
-    const content = `---
+	test("parses an idea with promoted_to", () => {
+		const content = `---
 id: I-002
 title: "Cache everything"
 status: promoted
@@ -699,28 +725,28 @@ promoted_to: R-005
 
 Body.
 `;
-    const entity = parseEntity(content, 'ideas/I-002.md');
-    expect(entity.type).toBe('idea');
-    expect(entity.status).toBe('promoted');
-    if (entity.type === 'idea') {
-      expect(entity.promoted_to).toBe('R-005');
-    }
-  });
+		const entity = parseEntity(content, "ideas/I-002.md");
+		expect(entity.type).toBe("idea");
+		expect(entity.status).toBe("promoted");
+		if (entity.type === "idea") {
+			expect(entity.promoted_to).toBe("R-005");
+		}
+	});
 
-  test('idea defaults to explore status', () => {
-    const content = `---
+	test("idea defaults to explore status", () => {
+		const content = `---
 id: I-003
 title: "Some idea"
 ---
 
 Body.
 `;
-    const entity = parseEntity(content, 'ideas/I-003.md');
-    expect(entity.status).toBe('explore');
-  });
+		const entity = parseEntity(content, "ideas/I-003.md");
+		expect(entity.status).toBe("explore");
+	});
 
-  test('round-trips an idea', () => {
-    const content = `---
+	test("round-trips an idea", () => {
+		const content = `---
 id: I-001
 title: "Use CRDTs for sync"
 status: explore
@@ -733,153 +759,755 @@ inspired_by: [D-001]
 
 Body text.
 `;
-    const entity = parseEntity(content, 'test.md');
-    const serialized = serializeEntity(entity);
-    const reParsed = parseEntity(serialized, 'test.md');
-    expect(reParsed).toEqual(entity);
-  });
+		const entity = parseEntity(content, "test.md");
+		const serialized = serializeEntity(entity);
+		const reParsed = parseEntity(serialized, "test.md");
+		expect(reParsed).toEqual(entity);
+	});
 
-  test('getTypeFromId recognizes I- prefix', () => {
-    const { getTypeFromId } = require('../src/types');
-    expect(getTypeFromId('I-001')).toBe('idea');
-  });
+	test("getTypeFromId recognizes I- prefix", () => {
+		const { getTypeFromId } = require("../src/types");
+		expect(getTypeFromId("I-001")).toBe("idea");
+	});
 
-  test('getTypeFromId throws on unknown prefix', () => {
-    const { getTypeFromId } = require('../src/types');
-    expect(() => getTypeFromId('X-001')).toThrow();
-  });
+	test("getTypeFromId throws on unknown prefix", () => {
+		const { getTypeFromId } = require("../src/types");
+		expect(() => getTypeFromId("X-001")).toThrow();
+	});
 });
 
 // ─── Idea graph integration ───
 
-describe('idea graph', () => {
-  function makeIdeaEntities(): Entity[] {
-    const r1: Requirement = {
-      type: 'requirement', id: 'R-001', title: 'Encrypt data', status: 'accepted',
-      date: '2026-04-30', tags: [], body: '', filePath: '',
-      derived_from: [], conflicts_with: [],
-    };
-    const d1: Decision = {
-      type: 'decision', id: 'D-001', title: 'Use SQLite', status: 'accepted',
-      date: '2026-04-30', tags: [], body: '', filePath: '',
-      driven_by: ['R-001'], enables: [],
-    };
-    const i1: Idea = {
-      type: 'idea', id: 'I-001', title: 'Use CRDTs for sync', status: 'explore',
-      date: '2026-05-01', tags: ['sync'], body: '', filePath: '',
-      inspired_by: ['D-001', 'R-001'],
-    };
-    const i2: Idea = {
-      type: 'idea', id: 'I-002', title: 'Offline-first architecture', status: 'parked',
-      date: '2026-05-01', tags: [], body: '', filePath: '',
-      inspired_by: ['I-001'],
-    };
-    return [r1, d1, i1, i2];
-  }
+describe("idea graph", () => {
+	function makeIdeaEntities(): Entity[] {
+		const r1: Requirement = {
+			type: "requirement",
+			id: "R-001",
+			title: "Encrypt data",
+			status: "accepted",
+			date: "2026-04-30",
+			tags: [],
+			body: "",
+			filePath: "",
+			derived_from: [],
+			conflicts_with: [],
+			requested_by: [],
+		};
+		const d1: Decision = {
+			type: "decision",
+			id: "D-001",
+			title: "Use SQLite",
+			status: "accepted",
+			date: "2026-04-30",
+			tags: [],
+			body: "",
+			filePath: "",
+			driven_by: ["R-001"],
+			enables: [],
+			affects: [],
+		};
+		const i1: Idea = {
+			type: "idea",
+			id: "I-001",
+			title: "Use CRDTs for sync",
+			status: "explore",
+			date: "2026-05-01",
+			tags: ["sync"],
+			body: "",
+			filePath: "",
+			inspired_by: ["D-001", "R-001"],
+		};
+		const i2: Idea = {
+			type: "idea",
+			id: "I-002",
+			title: "Offline-first architecture",
+			status: "parked",
+			date: "2026-05-01",
+			tags: [],
+			body: "",
+			filePath: "",
+			inspired_by: ["I-001"],
+		};
+		return [r1, d1, i1, i2];
+	}
 
-  test('builds graph with idea entities', () => {
-    const g = buildGraph(makeIdeaEntities());
-    expect(g.entities.size).toBe(4);
-  });
+	test("builds graph with idea entities", () => {
+		const g = buildGraph(makeIdeaEntities());
+		expect(g.entities.size).toBe(4);
+	});
 
-  test('idea inspired_by creates edges', () => {
-    const g = buildGraph(makeIdeaEntities());
-    const i1 = g.entities.get('I-001')!;
-    if (i1.type === 'idea') {
-      expect(i1.inspired_by).toEqual(['D-001', 'R-001']);
-    }
-    // I-001 should have outgoing inspired_by edges
-    const outgoing = g.outgoing.get('I-001') ?? [];
-    expect(outgoing.length).toBe(2);
-    expect(outgoing.map(e => e.to).sort()).toEqual(['D-001', 'R-001']);
-  });
+	test("idea inspired_by creates edges", () => {
+		const g = buildGraph(makeIdeaEntities());
+		const i1 = g.entities.get("I-001")!;
+		if (i1.type === "idea") {
+			expect(i1.inspired_by).toEqual(["D-001", "R-001"]);
+		}
+		// I-001 should have outgoing inspired_by edges
+		const outgoing = g.outgoing.get("I-001") ?? [];
+		expect(outgoing.length).toBe(2);
+		expect(outgoing.map((e) => e.to).sort()).toEqual(["D-001", "R-001"]);
+	});
 
-  test('idea-to-idea inspired_by creates edges', () => {
-    const g = buildGraph(makeIdeaEntities());
-    const outgoing = g.outgoing.get('I-002') ?? [];
-    expect(outgoing.length).toBe(1);
-    expect(outgoing[0].to).toBe('I-001');
-    expect(outgoing[0].type).toBe('inspired_by');
-  });
+	test("idea-to-idea inspired_by creates edges", () => {
+		const g = buildGraph(makeIdeaEntities());
+		const outgoing = g.outgoing.get("I-002") ?? [];
+		expect(outgoing.length).toBe(1);
+		expect(outgoing[0].to).toBe("I-001");
+		expect(outgoing[0].type).toBe("inspired_by");
+	});
 
-  test('getDependents finds ideas inspired by an entity', () => {
-    const g = buildGraph(makeIdeaEntities());
-    const deps = getDependents(g, 'D-001');
-    const ids = deps.map(d => d.id);
-    expect(ids).toContain('I-001');
-  });
+	test("getDependents finds ideas inspired by an entity", () => {
+		const g = buildGraph(makeIdeaEntities());
+		const deps = getDependents(g, "D-001");
+		const ids = deps.map((d) => d.id);
+		expect(ids).toContain("I-001");
+	});
 
-  test('getDependencies finds what inspires an idea', () => {
-    const g = buildGraph(makeIdeaEntities());
-    const deps = getDependencies(g, 'I-001');
-    const ids = deps.map(d => d.id);
-    expect(ids).toContain('D-001');
-    expect(ids).toContain('R-001');
-  });
+	test("getDependencies finds what inspires an idea", () => {
+		const g = buildGraph(makeIdeaEntities());
+		const deps = getDependencies(g, "I-001");
+		const ids = deps.map((d) => d.id);
+		expect(ids).toContain("D-001");
+		expect(ids).toContain("R-001");
+	});
 
-  test('impactAnalysis includes ideas', () => {
-    const g = buildGraph(makeIdeaEntities());
-    const result = impactAnalysis(g, 'D-001');
-    expect(result.direct.map(e => e.id)).toContain('I-001');
-    // I-002 is inspired by I-001, so it's transitive from D-001
-    expect(result.transitive.map(e => e.id)).toContain('I-002');
-  });
+	test("impactAnalysis includes ideas", () => {
+		const g = buildGraph(makeIdeaEntities());
+		const result = impactAnalysis(g, "D-001");
+		expect(result.direct.map((e) => e.id)).toContain("I-001");
+		// I-002 is inspired by I-001, so it's transitive from D-001
+		expect(result.transitive.map((e) => e.id)).toContain("I-002");
+	});
 
-  test('traceUp follows inspired_by edges', () => {
-    const g = buildGraph(makeIdeaEntities());
-    const tree = traceUp(g, 'I-002');
-    expect(tree).not.toBeNull();
-    expect(tree!.entity.id).toBe('I-002');
-    // I-002 inspired_by I-001, so I-001 is a child in the trace
-    expect(tree!.children.length).toBe(1);
-    expect(tree!.children[0].entity.id).toBe('I-001');
-  });
+	test("traceUp follows inspired_by edges", () => {
+		const g = buildGraph(makeIdeaEntities());
+		const tree = traceUp(g, "I-002");
+		expect(tree).not.toBeNull();
+		expect(tree!.entity.id).toBe("I-002");
+		// I-002 inspired_by I-001, so I-001 is a child in the trace
+		expect(tree!.children.length).toBe(1);
+		expect(tree!.children[0].entity.id).toBe("I-001");
+	});
 
-  test('search finds ideas by type modifier', () => {
-    const entities = makeIdeaEntities();
-    const results = searchEntities(entities, 'type:idea');
-    expect(results.length).toBe(2);
-    expect(results.every(r => r.entity.type === 'idea')).toBe(true);
-  });
+	test("search finds ideas by type modifier", () => {
+		const entities = makeIdeaEntities();
+		const results = searchEntities(entities, "type:idea");
+		expect(results.length).toBe(2);
+		expect(results.every((r) => r.entity.type === "idea")).toBe(true);
+	});
 
-  test('search finds ideas by inspired_by modifier', () => {
-    const entities = makeIdeaEntities();
-    const results = searchEntities(entities, 'inspired_by:D-001');
-    expect(results.length).toBe(1);
-    expect(results[0].entity.id).toBe('I-001');
-  });
+	test("search finds ideas by inspired_by modifier", () => {
+		const entities = makeIdeaEntities();
+		const results = searchEntities(entities, "inspired_by:D-001");
+		expect(results.length).toBe(1);
+		expect(results[0].entity.id).toBe("I-001");
+	});
 
-  test('search finds ideas by status modifier', () => {
-    const entities = makeIdeaEntities();
-    const results = searchEntities(entities, 'type:idea status:explore');
-    expect(results.length).toBe(1);
-    expect(results[0].entity.id).toBe('I-001');
-  });
+	test("search finds ideas by status modifier", () => {
+		const entities = makeIdeaEntities();
+		const results = searchEntities(entities, "type:idea status:explore");
+		expect(results.length).toBe(1);
+		expect(results[0].entity.id).toBe("I-001");
+	});
 
-  test('search finds ideas by text', () => {
-    const entities = makeIdeaEntities();
-    const results = searchEntities(entities, 'CRDTs');
-    expect(results.length).toBe(1);
-    expect(results[0].entity.id).toBe('I-001');
-  });
+	test("search finds ideas by text", () => {
+		const entities = makeIdeaEntities();
+		const results = searchEntities(entities, "CRDTs");
+		expect(results.length).toBe(1);
+		expect(results[0].entity.id).toBe("I-001");
+	});
 
-  test('ideas are excluded from orphan decisions check', () => {
-    // Ideas don't need backing — they shouldn't appear as orphans
-    const i1: Idea = {
-      type: 'idea', id: 'I-001', title: 'Wild idea', status: 'explore',
-      date: '2026-05-01', tags: [], body: '', filePath: '',
-      inspired_by: [],
-    };
-    const g = buildGraph([i1]);
-    const orphans = findOrphans(g);
-    expect(orphans.length).toBe(0);
-  });
+	test("ideas are excluded from orphan decisions check", () => {
+		// Ideas don't need backing — they shouldn't appear as orphans
+		const i1: Idea = {
+			type: "idea",
+			id: "I-001",
+			title: "Wild idea",
+			status: "explore",
+			date: "2026-05-01",
+			tags: [],
+			body: "",
+			filePath: "",
+			inspired_by: [],
+		};
+		const g = buildGraph([i1]);
+		const orphans = findOrphans(g);
+		expect(orphans.length).toBe(0);
+	});
 
-  test('link validation allows idea-inspired_by edges', () => {
-    const { VALID_EDGES } = require('../src/commands/link');
-    expect(VALID_EDGES['idea-requirement']).toEqual(['inspired_by']);
-    expect(VALID_EDGES['idea-assumption']).toEqual(['inspired_by']);
-    expect(VALID_EDGES['idea-decision']).toEqual(['inspired_by']);
-    expect(VALID_EDGES['idea-idea']).toEqual(['inspired_by']);
-  });
+	test("link validation allows idea-inspired_by edges", () => {
+		const { VALID_EDGES } = require("../src/commands/link");
+		expect(VALID_EDGES["idea-requirement"]).toEqual(["inspired_by"]);
+		expect(VALID_EDGES["idea-assumption"]).toEqual(["inspired_by"]);
+		expect(VALID_EDGES["idea-decision"]).toEqual(["inspired_by"]);
+		expect(VALID_EDGES["idea-idea"]).toEqual(["inspired_by"]);
+	});
+});
+
+// ─── Context ───
+
+describe("context", () => {
+	test("entity can have a context field", () => {
+		const r1: Requirement = {
+			type: "requirement",
+			id: "R-001",
+			title: "Encrypt data",
+			status: "accepted",
+			date: "2026-05-01",
+			tags: [],
+			body: "",
+			filePath: "",
+			derived_from: [],
+			conflicts_with: [],
+			requested_by: [],
+			context: "billing",
+		};
+		expect(r1.context).toBe("billing");
+	});
+
+	test("entity can omit context field", () => {
+		const r1: Requirement = {
+			type: "requirement",
+			id: "R-001",
+			title: "Encrypt data",
+			status: "accepted",
+			date: "2026-05-01",
+			tags: [],
+			body: "",
+			filePath: "",
+			derived_from: [],
+			conflicts_with: [],
+			requested_by: [],
+		};
+		expect(r1.context).toBeUndefined();
+	});
+
+	test("parser reads context from frontmatter", () => {
+		const content = `---
+id: D-001
+title: "Use Stripe"
+status: accepted
+date: 2026-05-01
+context: billing
+driven_by: [R-001]
+---
+
+Body.
+`;
+		const entity = parseEntity(content, "decisions/D-001.md");
+		expect(entity.context).toBe("billing");
+	});
+
+	test("parser handles missing context gracefully", () => {
+		const content = `---
+id: R-001
+title: "Some req"
+status: accepted
+date: 2026-05-01
+---
+
+Body.
+`;
+		const entity = parseEntity(content, "requirements/R-001.md");
+		expect(entity.context).toBeUndefined();
+	});
+
+	test("serializeFrontmatter includes context when set", () => {
+		const d1: Decision = {
+			type: "decision",
+			id: "D-001",
+			title: "Use Stripe",
+			status: "accepted",
+			date: "2026-05-01",
+			tags: [],
+			body: "",
+			filePath: "",
+			driven_by: ["R-001"],
+			enables: [],
+			affects: [],
+			context: "billing",
+		};
+		const yaml = serializeFrontmatter(d1);
+		expect(yaml).toContain("context: billing");
+	});
+
+	test("serializeFrontmatter omits context when not set", () => {
+		const d1: Decision = {
+			type: "decision",
+			id: "D-001",
+			title: "Use Stripe",
+			status: "accepted",
+			date: "2026-05-01",
+			tags: [],
+			body: "",
+			filePath: "",
+			driven_by: ["R-001"],
+			enables: [],
+			affects: [],
+		};
+		const yaml = serializeFrontmatter(d1);
+		expect(yaml).not.toContain("context:");
+	});
+
+	test("round-trip preserves context", () => {
+		const content = `---
+id: D-001
+title: "Use Stripe"
+status: accepted
+date: 2026-05-01
+context: billing
+driven_by: [R-001]
+---
+
+Body.
+`;
+		const entity = parseEntity(content, "test.md");
+		const serialized = serializeEntity(entity);
+		const reParsed = parseEntity(serialized, "test.md");
+		expect(reParsed).toEqual(entity);
+		expect(reParsed.context).toBe("billing");
+	});
+
+	test("graph indexes entities by context", () => {
+		const r1: Requirement = {
+			type: "requirement",
+			id: "R-001",
+			title: "Encrypt data",
+			status: "accepted",
+			date: "2026-05-01",
+			tags: [],
+			body: "",
+			filePath: "",
+			derived_from: [],
+			conflicts_with: [],
+			requested_by: [],
+			context: "billing",
+		};
+		const r2: Requirement = {
+			type: "requirement",
+			id: "R-002",
+			title: "Offline support",
+			status: "accepted",
+			date: "2026-05-01",
+			tags: [],
+			body: "",
+			filePath: "",
+			derived_from: [],
+			conflicts_with: [],
+			requested_by: [],
+			context: "billing",
+		};
+		const d1: Decision = {
+			type: "decision",
+			id: "D-001",
+			title: "Use SQLite",
+			status: "accepted",
+			date: "2026-05-01",
+			tags: [],
+			body: "",
+			filePath: "",
+			driven_by: ["R-001"],
+			enables: [],
+			affects: [],
+			context: "fulfillment",
+		};
+		const a1: Assumption = {
+			type: "assumption",
+			id: "A-001",
+			title: "Low latency",
+			status: "unvalidated",
+			date: "2026-05-01",
+			tags: [],
+			body: "",
+			filePath: "",
+		};
+		const g = buildGraph([r1, r2, d1, a1]);
+
+		expect(g.byContext.get("billing")?.length).toBe(2);
+		expect(g.byContext.get("fulfillment")?.length).toBe(1);
+		expect(g.byContext.get("")?.length).toBe(1); // a1 has no context
+	});
+
+	test("search finds entities by context modifier", () => {
+		const r1: Requirement = {
+			type: "requirement",
+			id: "R-001",
+			title: "Encrypt data",
+			status: "accepted",
+			date: "2026-05-01",
+			tags: [],
+			body: "",
+			filePath: "",
+			derived_from: [],
+			conflicts_with: [],
+			requested_by: [],
+			context: "billing",
+		};
+		const r2: Requirement = {
+			type: "requirement",
+			id: "R-002",
+			title: "Fast shipping",
+			status: "accepted",
+			date: "2026-05-01",
+			tags: [],
+			body: "",
+			filePath: "",
+			derived_from: [],
+			conflicts_with: [],
+			requested_by: [],
+			context: "fulfillment",
+		};
+		const results = searchEntities([r1, r2], "context:billing");
+		expect(results.length).toBe(1);
+		expect(results[0].entity.id).toBe("R-001");
+	});
+
+	test("search context modifier is case-insensitive", () => {
+		const r1: Requirement = {
+			type: "requirement",
+			id: "R-001",
+			title: "Encrypt",
+			status: "accepted",
+			date: "2026-05-01",
+			tags: [],
+			body: "",
+			filePath: "",
+			derived_from: [],
+			conflicts_with: [],
+			requested_by: [],
+			context: "Billing",
+		};
+		const results = searchEntities([r1], "context:billing");
+		expect(results.length).toBe(1);
+	});
+});
+
+// ─── Stakeholder ───
+
+describe("stakeholder", () => {
+	test("parses a stakeholder", () => {
+		const content = `---
+id: S-001
+title: "Warehouse operations team"
+status: active
+date: 2026-05-03
+---
+
+Body.
+`;
+		const entity = parseEntity(content, "stakeholders/S-001.md");
+		expect(entity.type).toBe("stakeholder");
+		expect(entity.id).toBe("S-001");
+		expect(entity.title).toBe("Warehouse operations team");
+		expect(entity.status).toBe("active");
+	});
+
+	test("stakeholder defaults to active status", () => {
+		const content = `---
+id: S-002
+title: "Finance team"
+---
+
+Body.
+`;
+		const entity = parseEntity(content, "stakeholders/S-002.md");
+		expect(entity.status).toBe("active");
+	});
+
+	test("round-trips a stakeholder", () => {
+		const content = `---
+id: S-001
+title: "Warehouse team"
+status: active
+date: 2026-05-03
+---
+
+Body text.
+`;
+		const entity = parseEntity(content, "test.md");
+		const serialized = serializeEntity(entity);
+		const reParsed = parseEntity(serialized, "test.md");
+		expect(reParsed).toEqual(entity);
+	});
+
+	test("getTypeFromId recognizes S- prefix", () => {
+		const { getTypeFromId } = require("../src/types");
+		expect(getTypeFromId("S-001")).toBe("stakeholder");
+	});
+
+	test("requirement can have requested_by pointing to stakeholder", () => {
+		const r1: Requirement = {
+			type: "requirement",
+			id: "R-001",
+			title: "Fast order processing",
+			status: "accepted",
+			date: "2026-05-03",
+			tags: [],
+			body: "",
+			filePath: "",
+			derived_from: [],
+			conflicts_with: [],
+			requested_by: ["S-001"],
+		};
+		const s1: Stakeholder = {
+			type: "stakeholder",
+			id: "S-001",
+			title: "Warehouse team",
+			status: "active",
+			date: "2026-05-03",
+			tags: [],
+			body: "",
+			filePath: "",
+		};
+		const g = buildGraph([r1, s1]);
+		const deps = getDependents(g, "S-001");
+		expect(deps.map((d) => d.id)).toContain("R-001");
+	});
+
+	test("decision can have affects pointing to stakeholder", () => {
+		const d1: Decision = {
+			type: "decision",
+			id: "D-001",
+			title: "Use real-time inventory",
+			status: "accepted",
+			date: "2026-05-03",
+			tags: [],
+			body: "",
+			filePath: "",
+			driven_by: [],
+			enables: [],
+			affects: ["S-001"],
+		};
+		const s1: Stakeholder = {
+			type: "stakeholder",
+			id: "S-001",
+			title: "Warehouse team",
+			status: "active",
+			date: "2026-05-03",
+			tags: [],
+			body: "",
+			filePath: "",
+		};
+		const g = buildGraph([d1, s1]);
+		const deps = getDependents(g, "S-001");
+		expect(deps.map((d) => d.id)).toContain("D-001");
+	});
+
+	test("link validation allows requirement→stakeholder requested_by", () => {
+		const { VALID_EDGES } = require("../src/commands/link");
+		expect(VALID_EDGES["requirement-stakeholder"]).toEqual(["requested_by"]);
+	});
+
+	test("link validation allows decision→stakeholder affects", () => {
+		const { VALID_EDGES } = require("../src/commands/link");
+		expect(VALID_EDGES["decision-stakeholder"]).toEqual(["affects"]);
+	});
+
+	test("impact analysis includes stakeholders", () => {
+		const s1: Stakeholder = {
+			type: "stakeholder",
+			id: "S-001",
+			title: "Warehouse team",
+			status: "active",
+			date: "2026-05-03",
+			tags: [],
+			body: "",
+			filePath: "",
+		};
+		const d1: Decision = {
+			type: "decision",
+			id: "D-001",
+			title: "Change warehouse process",
+			status: "accepted",
+			date: "2026-05-03",
+			tags: [],
+			body: "",
+			filePath: "",
+			driven_by: [],
+			enables: [],
+			affects: ["S-001"],
+		};
+		const g = buildGraph([s1, d1]);
+		const result = impactAnalysis(g, "S-001");
+		expect(result.direct.map((e) => e.id)).toContain("D-001");
+	});
+
+});
+// ─── Risk ───
+
+describe("risk", () => {
+	test("parses a risk", () => {
+		const content = `---
+id: K-001
+title: "Payment provider downtime"
+status: identified
+date: 2026-05-03
+mitigated_by: [D-005]
+---
+
+Body.
+`;
+		const entity = parseEntity(content, "risks/K-001.md");
+		expect(entity.type).toBe("risk");
+		expect(entity.id).toBe("K-001");
+		expect(entity.title).toBe("Payment provider downtime");
+		expect(entity.status).toBe("identified");
+		if (entity.type === "risk") {
+			expect(entity.mitigated_by).toEqual(["D-005"]);
+		}
+	});
+
+	test("risk defaults to identified status", () => {
+		const content = `---
+id: K-002
+title: "Data loss"
+---
+
+Body.
+`;
+		const entity = parseEntity(content, "risks/K-002.md");
+		expect(entity.status).toBe("identified");
+	});
+
+	test("round-trips a risk", () => {
+		const content = `---
+id: K-001
+title: "Payment downtime"
+status: mitigated
+date: 2026-05-03
+mitigated_by: [D-005]
+---
+
+Body text.
+`;
+		const entity = parseEntity(content, "test.md");
+		const serialized = serializeEntity(entity);
+		const reParsed = parseEntity(serialized, "test.md");
+		expect(reParsed).toEqual(entity);
+	});
+
+	test("getTypeFromId recognizes K- prefix", () => {
+		const { getTypeFromId } = require("../src/types");
+		expect(getTypeFromId("K-001")).toBe("risk");
+	});
+
+	test("risk mitigated_by creates edges", () => {
+		const k1: Risk = {
+			type: "risk",
+			id: "K-001",
+			title: "Payment downtime",
+			status: "mitigated",
+			date: "2026-05-03",
+			tags: [],
+			body: "",
+			filePath: "",
+			mitigated_by: ["D-005"],
+		};
+		const d1: Decision = {
+			type: "decision",
+			id: "D-005",
+			title: "Use payment fallback",
+			status: "accepted",
+			date: "2026-05-03",
+			tags: [],
+			body: "",
+			filePath: "",
+			driven_by: [],
+			enables: [],
+			affects: [],
+		};
+		const g = buildGraph([k1, d1]);
+		const outgoing = g.outgoing.get("K-001") ?? [];
+		expect(outgoing.length).toBe(1);
+		expect(outgoing[0].to).toBe("D-005");
+		expect(outgoing[0].type).toBe("mitigated_by");
+	});
+
+	test("getDependents finds risks mitigated by a decision", () => {
+		const k1: Risk = {
+			type: "risk",
+			id: "K-001",
+			title: "Payment downtime",
+			status: "mitigated",
+			date: "2026-05-03",
+			tags: [],
+			body: "",
+			filePath: "",
+			mitigated_by: ["D-005"],
+		};
+		const d1: Decision = {
+			type: "decision",
+			id: "D-005",
+			title: "Use payment fallback",
+			status: "accepted",
+			date: "2026-05-03",
+			tags: [],
+			body: "",
+			filePath: "",
+			driven_by: [],
+			enables: [],
+			affects: [],
+		};
+		const g = buildGraph([k1, d1]);
+		const deps = getDependents(g, "D-005");
+		expect(deps.map((d) => d.id)).toContain("K-001");
+	});
+
+	test("link validation allows risk→decision mitigated_by", () => {
+		const { VALID_EDGES } = require("../src/commands/link");
+		expect(VALID_EDGES["risk-decision"]).toEqual(["mitigated_by"]);
+	});
+});
+// ─── Term ───
+
+describe("term", () => {
+	test("parses a term", () => {
+		const content = `---
+id: T-001
+title: "Order"
+status: accepted
+date: 2026-05-03
+---
+
+A customer's intent to purchase one or more items.
+`;
+		const entity = parseEntity(content, "terms/T-001.md");
+		expect(entity.type).toBe("term");
+		expect(entity.id).toBe("T-001");
+		expect(entity.title).toBe("Order");
+		expect(entity.status).toBe("accepted");
+	});
+
+	test("term defaults to draft status", () => {
+		const content = `---
+id: T-002
+title: "Fulfillment"
+---
+
+Body.
+`;
+		const entity = parseEntity(content, "terms/T-002.md");
+		expect(entity.status).toBe("draft");
+	});
+
+	test("round-trips a term", () => {
+		const content = `---
+id: T-001
+title: "Order"
+status: accepted
+date: 2026-05-03
+---
+
+A customer's intent to purchase items.
+`;
+		const entity = parseEntity(content, "test.md");
+		const serialized = serializeEntity(entity);
+		const reParsed = parseEntity(serialized, "test.md");
+		expect(reParsed).toEqual(entity);
+	});
+
+	test("getTypeFromId recognizes T- prefix", () => {
+		const { getTypeFromId } = require("../src/types");
+		expect(getTypeFromId("T-001")).toBe("term");
+	});
 });

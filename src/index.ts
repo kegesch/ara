@@ -56,6 +56,7 @@ program
 	.option("--inspired-by <ids>", "Comma-separated IDs that inspired this idea")
 	.option("--body <text>", "Body content (markdown)")
 	.option("--body-file <path>", "Read body from file (use - for stdin)")
+	.option("--context <context>", "Context (e.g. billing, fulfillment)")
 	.action(
 		async (
 			type: string,
@@ -67,10 +68,13 @@ program
 				"assumption",
 				"decision",
 				"idea",
+				"stakeholder",
+			"risk",
+			"term",
 			] as const;
 			if (!validTypes.includes(type as any)) {
 				console.error(
-					`Invalid type: "${type}". Must be: requirement, assumption, decision, idea`,
+					`Invalid type: "${type}". Must be: requirement, assumption, decision, idea, stakeholder, risk, term`,
 				);
 				process.exit(1);
 			}
@@ -83,6 +87,7 @@ program
 	.argument("[type]", "Filter by type: requirement | assumption | decision")
 	.option("--status <status>", "Filter by status")
 	.option("--tag <tag>", "Filter by tag")
+	.option("--context <context>", "Filter by context")
 	.action((type: string | undefined, opts: Record<string, string>) => {
 		listCommand(type, opts);
 	});
@@ -116,10 +121,12 @@ program
 	)
 	.option("--strict", "Treat warnings as errors (exit code 1)")
 	.option("--format <format>", "Output format: text or json", "text")
-	.action((opts: { strict?: boolean; format?: string }) => {
+	.option("--context <context>", "Filter by context")
+	.action((opts: { strict?: boolean; format?: string; context?: string }) => {
 		checkCommand({
 			strict: opts.strict,
 			format: (opts.format as "text" | "json") ?? "text",
+			context: opts.context,
 		});
 	});
 

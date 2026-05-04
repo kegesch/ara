@@ -10,6 +10,7 @@ export interface RawFrontmatter {
 	status?: string;
 	date?: string;
 	tags?: string[];
+	context?: string;
 	derived_from?: string[];
 	conflicts_with?: string[];
 	driven_by?: string[];
@@ -17,6 +18,9 @@ export interface RawFrontmatter {
 	supersedes?: string;
 	promoted_to?: string;
 	inspired_by?: string[];
+	requested_by?: string[];
+	affects?: string[];
+	mitigated_by?: string[];
 }
 
 /**
@@ -53,6 +57,7 @@ export function parseEntity(content: string, filePath: string): Entity {
 		tags,
 		body,
 		filePath,
+		context: meta.context,
 	};
 
 	switch (type) {
@@ -63,6 +68,7 @@ export function parseEntity(content: string, filePath: string): Entity {
 				status: (meta.status as RequirementStatus) ?? "draft",
 				derived_from: meta.derived_from ?? [],
 				conflicts_with: meta.conflicts_with ?? [],
+				requested_by: meta.requested_by ?? [],
 			};
 		case "assumption":
 			return {
@@ -79,6 +85,7 @@ export function parseEntity(content: string, filePath: string): Entity {
 				driven_by: meta.driven_by ?? [],
 				enables: meta.enables ?? [],
 				supersedes: meta.supersedes,
+				affects: meta.affects ?? [],
 			};
 		case "idea":
 			return {
@@ -88,6 +95,25 @@ export function parseEntity(content: string, filePath: string): Entity {
 				inspired_by: meta.inspired_by ?? [],
 				promoted_to: meta.promoted_to,
 			};
+		case "stakeholder":
+			return {
+				...base,
+				type: "stakeholder",
+				status: (meta.status as StakeholderStatus) ?? "active",
+			};
+		case "risk":
+			return {
+				...base,
+				type: "risk",
+				status: (meta.status as RiskStatus) ?? "identified",
+				mitigated_by: meta.mitigated_by ?? [],
+			};
+		case "term":
+			return {
+				...base,
+				type: "term",
+				status: (meta.status as TermStatus) ?? "draft",
+			};
 	}
 }
 
@@ -96,6 +122,13 @@ type RequirementStatus = "draft" | "accepted" | "deprecated" | "rejected";
 type AssumptionStatus = "unvalidated" | "validated" | "invalidated";
 type DecisionStatus = "proposed" | "accepted" | "deprecated" | "superseded";
 type IdeaStatus = "explore" | "parked" | "rejected" | "promoted";
+type StakeholderStatus = "active" | "inactive";
+type RiskStatus =
+	| "identified"
+	| "mitigated"
+	| "accepted"
+	| "materialized"
+	| "closed";
 
 /**
  * Serialize entity frontmatter back to YAML string.
@@ -111,12 +144,18 @@ export function serializeFrontmatter(entity: Entity): string {
 		lines.push(`tags: [${entity.tags.join(", ")}]`);
 	}
 
+	if (entity.context) {
+		lines.push(`context: ${entity.context}`);
+	}
+
 	switch (entity.type) {
 		case "requirement":
 			if (entity.derived_from.length > 0)
 				lines.push(`derived_from: [${entity.derived_from.join(", ")}]`);
 			if (entity.conflicts_with.length > 0)
 				lines.push(`conflicts_with: [${entity.conflicts_with.join(", ")}]`);
+			if (entity.requested_by.length > 0)
+				lines.push(`requested_by: [${entity.requested_by.join(", ")}]`);
 			break;
 		case "assumption":
 			if (entity.promoted_to) lines.push(`promoted_to: ${entity.promoted_to}`);
@@ -127,11 +166,17 @@ export function serializeFrontmatter(entity: Entity): string {
 			if (entity.enables.length > 0)
 				lines.push(`enables: [${entity.enables.join(", ")}]`);
 			if (entity.supersedes) lines.push(`supersedes: ${entity.supersedes}`);
+			if (entity.affects.length > 0)
+				lines.push(`affects: [${entity.affects.join(", ")}]`);
 			break;
 		case "idea":
 			if (entity.inspired_by.length > 0)
 				lines.push(`inspired_by: [${entity.inspired_by.join(", ")}]`);
 			if (entity.promoted_to) lines.push(`promoted_to: ${entity.promoted_to}`);
+			break;
+		case "risk":
+			if (entity.mitigated_by.length > 0)
+				lines.push(`mitigated_by: [${entity.mitigated_by.join(", ")}]`);
 			break;
 	}
 

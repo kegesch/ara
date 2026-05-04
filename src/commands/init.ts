@@ -22,6 +22,7 @@ export function initCommand(): void {
 	console.log(`    assumptions/`);
 	console.log(`    decisions/`);
 	console.log(`    ideas/`);
+	console.log(`    stakeholders/`);
 	console.log("");
 	console.log("Commit .arad/ to git — it lives alongside your code.");
 }

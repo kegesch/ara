@@ -29,12 +29,12 @@ describe('MCP tool logic', () => {
     const r1: Requirement = {
       type: 'requirement', id: 'R-001', title: 'Encrypt data at rest', status: 'accepted',
       date: '2026-04-30', tags: ['security'], body: '', filePath: '',
-      derived_from: [], conflicts_with: [],
+      derived_from: [], conflicts_with: [], requested_by: [],
     };
     const r2: Requirement = {
       type: 'requirement', id: 'R-002', title: 'Support offline mode', status: 'accepted',
       date: '2026-04-30', tags: ['offline'], body: '', filePath: '',
-      derived_from: [], conflicts_with: [],
+      derived_from: [], conflicts_with: [], requested_by: [],
     };
     const a1: Assumption = {
       type: 'assumption', id: 'A-001', title: 'Users under 10k', status: 'unvalidated',
@@ -43,7 +43,7 @@ describe('MCP tool logic', () => {
     const d1: Decision = {
       type: 'decision', id: 'D-001', title: 'Use SQLite', status: 'accepted',
       date: '2026-04-30', tags: ['storage'], body: '', filePath: '',
-      driven_by: ['R-001', 'R-002', 'A-001'], enables: [],
+      driven_by: ['R-001', 'R-002', 'A-001'], enables: [], affects: [],
     };
     return [r1, r2, a1, d1];
   }
@@ -88,7 +88,7 @@ describe('MCP tool logic', () => {
     const d2: Decision = {
       type: 'decision', id: 'D-002', title: 'Cache layer', status: 'proposed',
       date: '2026-04-30', tags: [], body: '', filePath: '',
-      driven_by: ['D-001'], enables: [],
+      driven_by: ['D-001'], enables: [], affects: [],
     };
     entities.push(d2);
     const graph = buildGraph(entities);
@@ -133,7 +133,7 @@ describe('MCP tool logic', () => {
     const entity: Decision = {
       type: 'decision', id: 'D-099', title: 'Test decision', status: 'accepted',
       date: '2026-04-30', tags: ['test'], body: 'Test body', filePath: '',
-      driven_by: ['R-001'], enables: [],
+      driven_by: ['R-001'], enables: [], affects: [],
     };
     const serialized = serializeEntity(entity);
     const reparsed = parseEntity(serialized, 'test.md');
@@ -163,7 +163,7 @@ describe('MCP tool logic', () => {
     const r: Requirement = {
       type: 'requirement', id: 'R-099', title: a.title, status: 'accepted',
       date: '2026-04-30', tags: [], body: '', filePath: '',
-      derived_from: [], conflicts_with: [],
+      derived_from: [], conflicts_with: [], requested_by: [],
     };
     a.promoted_to = r.id;
     expect(a.promoted_to).toBe('R-099');

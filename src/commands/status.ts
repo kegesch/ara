@@ -1,7 +1,7 @@
 // arad status — quick project health summary
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { bold, colorId, dim, green, red, yellow } from "../display/format.js";
+import { bold, dim, green, red, yellow } from "../display/format.js";
 import {
 	buildGraph,
 	findContradictions,
@@ -10,13 +10,7 @@ import {
 	findUnvalidatedAssumptions,
 } from "../graph/graph.js";
 import { ARAD_DIR, readAllEntities, requireAradProject } from "../io/files.js";
-import type {
-	AssumptionStatus,
-	DecisionStatus,
-	Entity,
-	EntityType,
-	RequirementStatus,
-} from "../types.js";
+import type { Entity, EntityType } from "../types.js";
 
 export function statusCommand(): void {
 	requireAradProject();
@@ -44,6 +38,9 @@ export function statusCommand(): void {
 		assumption: entities.filter((e) => e.type === "assumption"),
 		decision: entities.filter((e) => e.type === "decision"),
 		idea: entities.filter((e) => e.type === "idea"),
+		stakeholder: entities.filter((e) => e.type === "stakeholder"),
+		risk: entities.filter((e) => e.type === "risk"),
+		term: entities.filter((e) => e.type === "term"),
 	};
 
 	function statusBreakdown(list: Entity[]): string {
@@ -59,6 +56,8 @@ export function statusCommand(): void {
 		"assumption",
 		"decision",
 		"idea",
+		"risk",
+	"term",
 	] as EntityType[]) {
 		const list = byType[type];
 		const label = type + (list.length !== 1 ? "s" : "");
@@ -71,6 +70,32 @@ export function statusCommand(): void {
 
 	console.log(`  ${graph.edges.length} relationships`);
 	console.log("");
+
+	// Context breakdown
+	if (
+		graph.byContext.size > 1 ||
+		(graph.byContext.size === 1 && graph.byContext.has("") === false)
+	) {
+		console.log(bold("Contexts:"));
+		const sortedContexts = [...graph.byContext.entries()].sort((a, b) => {
+			// Empty (no context) goes last
+			if (a[0] === "") return 1;
+			if (b[0] === "") return -1;
+			return a[0].localeCompare(b[0]);
+		});
+		for (const [ctx, ctxEntities] of sortedContexts) {
+			const label = ctx || "(no context)";
+			const types = new Map<string, number>();
+			for (const e of ctxEntities) {
+				types.set(e.type, (types.get(e.type) ?? 0) + 1);
+			}
+			const breakdown = [...types.entries()]
+				.map(([t, c]) => `${c} ${t}${c !== 1 ? "s" : ""}`)
+				.join(", ");
+			console.log(`  ${label}: ${ctxEntities.length} entities (${breakdown})`);
+		}
+		console.log("");
+	}
 
 	// Quick health indicators
 	const contradictions = findContradictions(graph);

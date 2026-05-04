@@ -13,10 +13,16 @@ export function buildGraph(entities: Entity[]): AradGraph {
 		edges: [],
 		outgoing: new Map(),
 		incoming: new Map(),
+		byContext: new Map(),
 	};
 
 	for (const entity of entities) {
 		g.entities.set(entity.id, entity);
+
+		// Index by context
+		const ctx = entity.context ?? "";
+		if (!g.byContext.has(ctx)) g.byContext.set(ctx, []);
+		g.byContext.get(ctx)!.push(entity);
 	}
 
 	for (const entity of entities) {
@@ -27,6 +33,9 @@ export function buildGraph(entities: Entity[]): AradGraph {
 				}
 				for (const conflictId of entity.conflicts_with) {
 					addEdge(g, entity.id, conflictId, "conflicts_with");
+				}
+				for (const stakeholderId of entity.requested_by) {
+					addEdge(g, entity.id, stakeholderId, "requested_by");
 				}
 				break;
 			case "assumption":
@@ -44,6 +53,9 @@ export function buildGraph(entities: Entity[]): AradGraph {
 				if (entity.supersedes) {
 					addEdge(g, entity.id, entity.supersedes, "supersedes");
 				}
+				for (const stakeholderId of entity.affects) {
+					addEdge(g, entity.id, stakeholderId, "affects");
+				}
 				break;
 			case "idea":
 				for (const inspiredById of entity.inspired_by) {
@@ -52,6 +64,15 @@ export function buildGraph(entities: Entity[]): AradGraph {
 				if (entity.promoted_to) {
 					addEdge(g, entity.id, entity.promoted_to, "promoted_to");
 				}
+				break;
+			case "stakeholder":
+				break;
+			case "risk":
+				for (const decisionId of entity.mitigated_by) {
+					addEdge(g, entity.id, decisionId, "mitigated_by");
+				}
+				break;
+			case "term":
 				break;
 		}
 	}
@@ -82,9 +103,15 @@ export function getDependents(g: AradGraph, id: string): Entity[] {
 		// derived_from: edge.from is a requirement derived from edge.to
 		// enables: edge.from is a decision enabled by edge.to
 		if (
-			["driven_by", "derived_from", "enables", "inspired_by"].includes(
-				edge.type,
-			)
+			[
+				"driven_by",
+				"derived_from",
+				"enables",
+				"inspired_by",
+				"requested_by",
+				"affects",
+				"mitigated_by",
+			].includes(edge.type)
 		) {
 			const entity = g.entities.get(edge.from);
 			if (entity) result.push(entity);
@@ -102,9 +129,15 @@ export function getDependencies(g: AradGraph, id: string): Entity[] {
 	const outgoing = g.outgoing.get(id) ?? [];
 	for (const edge of outgoing) {
 		if (
-			["driven_by", "derived_from", "enables", "inspired_by"].includes(
-				edge.type,
-			)
+			[
+				"driven_by",
+				"derived_from",
+				"enables",
+				"inspired_by",
+				"requested_by",
+				"affects",
+				"mitigated_by",
+			].includes(edge.type)
 		) {
 			const entity = g.entities.get(edge.to);
 			if (entity) result.push(entity);

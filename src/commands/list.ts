@@ -6,11 +6,20 @@ import type { Entity, EntityType } from "../types.js";
 
 export function listCommand(
 	typeFilter?: string,
-	options?: { status?: string; tag?: string },
+	options?: { status?: string; tag?: string; context?: string },
 ): void {
 	requireAradProject();
 
 	let entities = readAllEntities();
+
+	// Filter by context
+	if (options?.context) {
+		entities = entities.filter(
+			(e) =>
+				e.context?.toLowerCase().includes(options.context!.toLowerCase()) ??
+				false,
+		);
+	}
 
 	// Filter by type
 	if (typeFilter) {
@@ -19,10 +28,12 @@ export function listCommand(
 			"assumption",
 			"decision",
 			"idea",
+			"risk",
+		"term",
 		];
 		if (!validTypes.includes(typeFilter as EntityType)) {
 			console.error(
-				`Invalid type "${typeFilter}". Use: requirement, assumption, decision, idea`,
+				`Invalid type "${typeFilter}". Use: requirement, assumption, decision, idea, stakeholder, risk, term`,
 			);
 			return;
 		}
@@ -54,7 +65,13 @@ export function listCommand(
 		grouped.get(e.type)!.push(e);
 	}
 
-	const order: EntityType[] = ["requirement", "assumption", "decision", "idea"];
+	const order: EntityType[] = [
+		"requirement",
+		"assumption",
+		"decision",
+		"idea",
+		"stakeholder",
+	];
 	for (const t of order) {
 		const group = grouped.get(t);
 		if (!group || group.length === 0) continue;
