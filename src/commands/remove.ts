@@ -8,8 +8,9 @@ import {
 	requireAradProject,
 	updateEntity,
 } from "../io/files.js";
-import type { Decision, Entity, Idea, Requirement } from "../types.js";
-import { ENTITY_CONFIG } from "../types.js";
+import type { Entity } from "../types.js";
+import { cleanRefs } from "../entities/registry.js";
+import { ENTITY_CONFIG } from "../entities/registry.js";
 
 export function removeCommand(
 	id: string,
@@ -64,58 +65,7 @@ function cleanReferences(removed: Entity, allEntities: Entity[]): void {
 
 	for (const entity of allEntities) {
 		if (entity.id === removedId) continue;
-		let changed = false;
-
-		switch (entity.type) {
-			case "decision": {
-				const d = entity as Decision;
-				if (d.driven_by.includes(removedId)) {
-					d.driven_by = d.driven_by.filter((id) => id !== removedId);
-					changed = true;
-				}
-				if (d.enables.includes(removedId)) {
-					d.enables = d.enables.filter((id) => id !== removedId);
-					changed = true;
-				}
-				if (d.supersedes === removedId) {
-					d.supersedes = undefined;
-					changed = true;
-				}
-				break;
-			}
-			case "requirement": {
-				const r = entity as Requirement;
-				if (r.derived_from.includes(removedId)) {
-					r.derived_from = r.derived_from.filter((id) => id !== removedId);
-					changed = true;
-				}
-				if (r.conflicts_with.includes(removedId)) {
-					r.conflicts_with = r.conflicts_with.filter((id) => id !== removedId);
-					changed = true;
-				}
-				break;
-			}
-			case "assumption": {
-				if ((entity as any).promoted_to === removedId) {
-					(entity as any).promoted_to = undefined;
-					changed = true;
-				}
-				break;
-			}
-			case "idea": {
-				const i = entity as Idea;
-				if (i.inspired_by.includes(removedId)) {
-					i.inspired_by = i.inspired_by.filter((id) => id !== removedId);
-					changed = true;
-				}
-				if (i.promoted_to === removedId) {
-					i.promoted_to = undefined;
-					changed = true;
-				}
-				break;
-			}
-		}
-
+		const changed = cleanRefs(entity, removedId);
 		if (changed) {
 			updateEntity(process.cwd(), entity);
 			console.log(dim(`  Cleaned references in ${colorId(entity.id)}`));

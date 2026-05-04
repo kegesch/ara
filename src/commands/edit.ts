@@ -5,16 +5,16 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { colorId } from "../display/format.js";
 import { ARAD_DIR, requireAradProject } from "../io/files.js";
+import { allDescriptors } from "../entities/registry.js";
 
 export function editCommand(id: string): void {
 	requireAradProject();
 
 	// Find the file for this entity
 	const aradPath = join(process.cwd(), ARAD_DIR);
-	const folders = ["requirements", "assumptions", "decisions", "ideas"];
 
-	for (const folder of folders) {
-		const folderPath = join(aradPath, folder);
+	for (const desc of allDescriptors()) {
+		const folderPath = join(aradPath, desc.folder);
 		if (!existsSync(folderPath)) continue;
 
 		const files = readdirSync(folderPath).filter(

@@ -69,10 +69,10 @@ program
 				"decision",
 				"idea",
 				"stakeholder",
-			"risk",
-			"term",
+				"risk",
+				"term",
 			] as const;
-			if (!validTypes.includes(type as any)) {
+			if (!validTypes.includes(type as (typeof validTypes)[number])) {
 				console.error(
 					`Invalid type: "${type}". Must be: requirement, assumption, decision, idea, stakeholder, risk, term`,
 				);

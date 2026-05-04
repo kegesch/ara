@@ -1,6 +1,7 @@
 // Terminal display formatting
 
-import type { Entity, EntityType } from "../types";
+import { getDescriptor, getDescriptorForId } from "../entities/registry";
+import type { Entity } from "../types";
 
 const C = {
 	reset: "\x1b[0m",
@@ -23,34 +24,13 @@ export const yellow = (t: string) => color(C.yellow, t);
 export const cyan = (t: string) => color(C.cyan, t);
 export const mag = (t: string) => color(C.magenta, t);
 
-export function typeColor(type: EntityType): string {
-	switch (type) {
-		case "requirement":
-			return C.cyan;
-		case "assumption":
-			return C.yellow;
-		case "decision":
-			return C.green;
-		case "idea":
-			return C.magenta;
-		case "stakeholder":
-			return C.blue;
-		case "risk":
-			return C.red;
-		case "term":
-			return C.cyan;
-	}
+export function typeColor(type: string): string {
+	return getDescriptor(type as any).ansiColor;
 }
 
 export function colorId(id: string): string {
-	if (id.startsWith("R-")) return cyan(id);
-	if (id.startsWith("A-")) return yellow(id);
-	if (id.startsWith("D-")) return green(id);
-	if (id.startsWith("I-")) return mag(id);
-	if (id.startsWith("S-")) return color(C.blue, id);
-	if (id.startsWith("K-")) return red(id);
-	if (id.startsWith("T-")) return cyan(id);
-	return id;
+	const desc = getDescriptorForId(id);
+	return color(desc.ansiColor, id);
 }
 
 export function statusIcon(status: string): string {
@@ -79,8 +59,6 @@ export function statusIcon(status: string): string {
 			return yellow("⚠");
 		case "mitigated":
 			return green("✓");
-		case "accepted":
-			return dim("⚠");
 		case "materialized":
 			return red("⚠");
 		case "closed":
@@ -104,6 +82,7 @@ export function formatEntityList(entities: Entity[]): string {
 
 export function formatEntityDetail(entity: Entity): string {
 	const tc = typeColor(entity.type);
+	const desc = getDescriptor(entity.type);
 	const lines: string[] = [];
 
 	lines.push(bold(`${entity.id}: ${entity.title}`));
@@ -119,37 +98,14 @@ export function formatEntityDetail(entity: Entity): string {
 		lines.push(`context: ${bold(entity.context)}`);
 	}
 
-	switch (entity.type) {
-		case "requirement":
-			if (entity.derived_from.length > 0)
-				lines.push(
-					`derived from: ${entity.derived_from.map(colorId).join(", ")}`,
-				);
-			if (entity.conflicts_with.length > 0)
-				lines.push(
-					`${red("conflicts with")}: ${entity.conflicts_with.map(colorId).join(", ")}`,
-				);
-			break;
-		case "assumption":
-			if (entity.promoted_to)
-				lines.push(`promoted to: ${cyan(entity.promoted_to)}`);
-			break;
-		case "decision":
-			if (entity.driven_by.length > 0)
-				lines.push(`driven by: ${entity.driven_by.map(colorId).join(", ")}`);
-			if (entity.enables.length > 0)
-				lines.push(`enables: ${entity.enables.map(colorId).join(", ")}`);
-			if (entity.supersedes)
-				lines.push(`supersedes: ${colorId(entity.supersedes)}`);
-			break;
-		case "idea":
-			if (entity.inspired_by.length > 0)
-				lines.push(
-					`inspired by: ${entity.inspired_by.map(colorId).join(", ")}`,
-				);
-			if (entity.promoted_to)
-				lines.push(`promoted to: ${colorId(entity.promoted_to)}`);
-			break;
+	// Type-specific relations via descriptor
+	for (const rel of desc.detailRelations(entity as any)) {
+		const ids = Array.isArray(rel.ids)
+			? rel.ids.map(colorId).join(", ")
+			: colorId(rel.ids);
+		const label =
+			rel.style === "red" ? red(rel.label) : rel.label;
+		lines.push(`${label}: ${ids}`);
 	}
 
 	if (entity.body) {

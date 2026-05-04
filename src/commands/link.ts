@@ -10,76 +10,16 @@ import type {
 	Decision,
 	EdgeType,
 	Entity,
-	EntityType,
 	Requirement,
 } from "../types.js";
+import {
+	VALID_EDGES,
+	getAllRelFields,
+	getRelField,
+	inferEdgeType,
+} from "../entities/registry.js";
 
-/**
- * Which edge types are valid for each (fromType, toType) pair.
- * Key is "fromType-toType", value is list of valid edge types.
- */
-export const VALID_EDGES: Record<string, EdgeType[]> = {
-	"decision-requirement": ["driven_by"],
-	"decision-assumption": ["driven_by"],
-	"decision-decision": ["enables", "supersedes"],
-	"decision-idea": ["driven_by"],
-	"decision-stakeholder": ["affects"],
-	"requirement-requirement": ["derived_from", "conflicts_with"],
-	"requirement-stakeholder": ["requested_by"],
-	"idea-requirement": ["inspired_by"],
-	"idea-assumption": ["inspired_by"],
-	"idea-decision": ["inspired_by"],
-	"idea-idea": ["inspired_by"],
-	"risk-decision": ["mitigated_by"],
-};
-
-/**
- * Maps an edge type + from entity to the field name and whether it's an array.
- */
-function getRelField(
-	entity: Entity,
-	edgeType: EdgeType,
-): { field: string; isArray: boolean } | null {
-	switch (entity.type) {
-		case "decision":
-			if (edgeType === "driven_by")
-				return { field: "driven_by", isArray: true };
-			if (edgeType === "enables") return { field: "enables", isArray: true };
-			if (edgeType === "supersedes")
-				return { field: "supersedes", isArray: false };
-			if (edgeType === "affects") return { field: "affects", isArray: true };
-			return null;
-		case "requirement":
-			if (edgeType === "derived_from")
-				return { field: "derived_from", isArray: true };
-			if (edgeType === "conflicts_with")
-				return { field: "conflicts_with", isArray: true };
-			if (edgeType === "requested_by")
-				return { field: "requested_by", isArray: true };
-			return null;
-		case "idea":
-			if (edgeType === "inspired_by")
-				return { field: "inspired_by", isArray: true };
-			return null;
-		case "risk":
-			if (edgeType === "mitigated_by")
-				return { field: "mitigated_by", isArray: true };
-			return null;
-		default:
-			return null;
-	}
-}
-
-function inferEdgeType(
-	fromType: EntityType,
-	toType: EntityType,
-): EdgeType | null {
-	const key = `${fromType}-${toType}`;
-	const valid = VALID_EDGES[key];
-	if (!valid || valid.length === 0) return null;
-	if (valid.length === 1) return valid[0];
-	return null; // ambiguous — user must specify
-}
+export { VALID_EDGES } from "../entities/registry.js";
 
 export function linkCommand(
 	fromId: string,
@@ -151,7 +91,7 @@ export function linkCommand(
 	}
 
 	// Check the field exists on from entity
-	const relField = getRelField(fromEntity, edgeType);
+	const relField = getRelField(fromEntity.type, edgeType);
 	if (!relField) {
 		console.error(red(`Cannot apply "${edgeType}" to a ${fromEntity.type}.`));
 		process.exit(1);
@@ -237,14 +177,13 @@ export function unlinkCommand(
 		edgeTypesToCheck = [options.type as EdgeType];
 	} else {
 		// Check all possible fields on fromEntity
-		const allFields = getAllRelFields(fromEntity);
-		edgeTypesToCheck = allFields;
+		edgeTypesToCheck = getAllRelFields(fromEntity.type);
 	}
 
 	let removed = false;
 
 	for (const edgeType of edgeTypesToCheck) {
-		const relField = getRelField(fromEntity, edgeType);
+		const relField = getRelField(fromEntity.type, edgeType);
 		if (!relField) continue;
 
 		if (relField.isArray) {
@@ -297,19 +236,4 @@ export function unlinkCommand(
 	}
 
 	updateEntity(process.cwd(), fromEntity);
-}
-
-function getAllRelFields(entity: Entity): EdgeType[] {
-	switch (entity.type) {
-		case "decision":
-			return ["driven_by", "enables", "supersedes", "affects"];
-		case "requirement":
-			return ["derived_from", "conflicts_with", "requested_by"];
-		case "idea":
-			return ["inspired_by"];
-		case "risk":
-			return ["mitigated_by"];
-		default:
-			return [];
-	}
 }

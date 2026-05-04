@@ -10,7 +10,11 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import type { Entity, EntityType } from "../types";
-import { ENTITY_CONFIG } from "../types";
+import {
+	allDescriptors,
+	ENTITY_CONFIG,
+	ENTITY_TYPE_ORDER,
+} from "../entities/registry";
 import { parseEntity, serializeEntity } from "./parser";
 
 export const ARAD_DIR = ".arad";
@@ -33,16 +37,9 @@ export function readAllEntities(dir: string = process.cwd()): Entity[] {
 	const entities: Entity[] = [];
 	const aradPath = join(dir, ARAD_DIR);
 
-	for (const type of [
-		"requirement",
-		"assumption",
-		"decision",
-		"idea",
-		"stakeholder",
-		"risk",
-		"term",
-	] as EntityType[]) {
-		const folder = join(aradPath, ENTITY_CONFIG[type].folder);
+	for (const type of ENTITY_TYPE_ORDER) {
+		const config = ENTITY_CONFIG[type];
+		const folder = join(aradPath, config.folder);
 		if (!existsSync(folder)) continue;
 
 		const files = readdirSync(folder)
@@ -53,11 +50,11 @@ export function readAllEntities(dir: string = process.cwd()): Entity[] {
 			try {
 				const content = readFileSync(filePath, "utf-8");
 				entities.push(
-					parseEntity(content, join(ENTITY_CONFIG[type].folder, file)),
+					parseEntity(content, join(config.folder, file)),
 				);
 			} catch (e) {
 				console.error(
-					`  ⚠ Error parsing ${join(ENTITY_CONFIG[type].folder, file)}: ${(e as Error).message}`,
+					`  ⚠ Error parsing ${join(config.folder, file)}: ${(e as Error).message}`,
 				);
 			}
 		}
@@ -69,8 +66,9 @@ export function readAllEntities(dir: string = process.cwd()): Entity[] {
 /** Determine the next available ID for a given entity type */
 export function getNextId(dir: string, type: EntityType): string {
 	const aradPath = join(dir, ARAD_DIR);
-	const folder = join(aradPath, ENTITY_CONFIG[type].folder);
-	const prefix = ENTITY_CONFIG[type].prefix;
+	const config = ENTITY_CONFIG[type];
+	const folder = join(aradPath, config.folder);
+	const prefix = config.prefix;
 
 	let maxId = 0;
 	if (existsSync(folder)) {
@@ -100,7 +98,8 @@ export function slugify(title: string): string {
 /** Write an entity to disk, returns the relative file path */
 export function writeEntity(dir: string, entity: Entity): string {
 	const aradPath = join(dir, ARAD_DIR);
-	const folder = join(aradPath, ENTITY_CONFIG[entity.type].folder);
+	const config = ENTITY_CONFIG[entity.type];
+	const folder = join(aradPath, config.folder);
 	mkdirSync(folder, { recursive: true });
 
 	const slug = slugify(entity.title);
@@ -110,7 +109,7 @@ export function writeEntity(dir: string, entity: Entity): string {
 	const content = serializeEntity(entity);
 	writeFileSync(filePath, content, "utf-8");
 
-	return join(ENTITY_CONFIG[entity.type].folder, fileName);
+	return join(config.folder, fileName);
 }
 
 /** Read a single entity by ID */
@@ -122,8 +121,9 @@ export function readEntityById(dir: string, id: string): Entity | null {
 /** Update an entity's frontmatter on disk */
 export function updateEntity(dir: string, entity: Entity): void {
 	// Find the existing file
+	const config = ENTITY_CONFIG[entity.type];
 	const aradPath = join(dir, ARAD_DIR);
-	const folder = join(aradPath, ENTITY_CONFIG[entity.type].folder);
+	const folder = join(aradPath, config.folder);
 	if (!existsSync(folder)) return;
 
 	const files = readdirSync(folder).filter(
@@ -153,12 +153,8 @@ export function updateEntity(dir: string, entity: Entity): void {
 /** Initialize the .arad/ directory structure */
 export function initAradDir(dir: string, name: string): void {
 	const aradPath = join(dir, ARAD_DIR);
-	mkdirSync(join(aradPath, "requirements"), { recursive: true });
-	mkdirSync(join(aradPath, "assumptions"), { recursive: true });
-	mkdirSync(join(aradPath, "decisions"), { recursive: true });
-	mkdirSync(join(aradPath, "ideas"), { recursive: true });
-	mkdirSync(join(aradPath, "stakeholders"), { recursive: true });
-	mkdirSync(join(aradPath, "risks"), { recursive: true });
-	mkdirSync(join(aradPath, "terms"), { recursive: true });
+	for (const desc of allDescriptors()) {
+		mkdirSync(join(aradPath, desc.folder), { recursive: true });
+	}
 	writeFileSync(join(aradPath, "arad.yaml"), `name: ${name}\n`, "utf-8");
 }

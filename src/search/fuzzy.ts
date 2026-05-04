@@ -1,5 +1,6 @@
 // Fuzzy text search for ARAD entities
 
+import { getDescriptor, hasRelation } from "../entities/registry";
 import type { Entity, EntityType } from "../types";
 
 export interface SearchResult {
@@ -115,7 +116,7 @@ function scoreModifier(entity: Entity, key: string, value: string): number {
 		case "derived_from":
 		case "enables":
 		case "conflicts_with":
-			return hasRelationship(entity, key, value) ? 35 : 0;
+			return hasRelation(entity, key, value) ? 35 : 0;
 		case "id":
 			return entity.id.toLowerCase() === value
 				? 100
@@ -136,35 +137,6 @@ function scoreModifier(entity: Entity, key: string, value: string): number {
 			return entity.context?.toLowerCase().includes(value) ? 30 : 0;
 		default:
 			return 0;
-	}
-}
-
-function hasRelationship(
-	entity: Entity,
-	relType: string,
-	value: string,
-): boolean {
-	switch (entity.type) {
-		case "requirement":
-			if (relType === "derived_from")
-				return entity.derived_from.some((d) => d.toLowerCase().includes(value));
-			if (relType === "conflicts_with")
-				return entity.conflicts_with.some((d) =>
-					d.toLowerCase().includes(value),
-				);
-			return false;
-		case "decision":
-			if (relType === "driven_by")
-				return entity.driven_by.some((d) => d.toLowerCase().includes(value));
-			if (relType === "enables")
-				return entity.enables.some((d) => d.toLowerCase().includes(value));
-			return false;
-		case "idea":
-			if (relType === "inspired_by")
-				return entity.inspired_by.some((d) => d.toLowerCase().includes(value));
-			return false;
-		default:
-			return false;
 	}
 }
 

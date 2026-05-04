@@ -3,6 +3,7 @@
 import { formatEntityList } from "../display/format.js";
 import { readAllEntities, requireAradProject } from "../io/files.js";
 import type { Entity, EntityType } from "../types.js";
+import { ENTITY_TYPE_ORDER, allTypes } from "../entities/registry.js";
 
 export function listCommand(
 	typeFilter?: string,
@@ -23,17 +24,9 @@ export function listCommand(
 
 	// Filter by type
 	if (typeFilter) {
-		const validTypes: EntityType[] = [
-			"requirement",
-			"assumption",
-			"decision",
-			"idea",
-			"risk",
-		"term",
-		];
-		if (!validTypes.includes(typeFilter as EntityType)) {
+		if (!allTypes().includes(typeFilter as EntityType)) {
 			console.error(
-				`Invalid type "${typeFilter}". Use: requirement, assumption, decision, idea, stakeholder, risk, term`,
+				`Invalid type "${typeFilter}". Use: ${allTypes().join(", ")}`,
 			);
 			return;
 		}
@@ -65,14 +58,7 @@ export function listCommand(
 		grouped.get(e.type)!.push(e);
 	}
 
-	const order: EntityType[] = [
-		"requirement",
-		"assumption",
-		"decision",
-		"idea",
-		"stakeholder",
-	];
-	for (const t of order) {
+	for (const t of ENTITY_TYPE_ORDER) {
 		const group = grouped.get(t);
 		if (!group || group.length === 0) continue;
 		console.log(

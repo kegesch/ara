@@ -2,6 +2,7 @@
 import { readAllEntities, requireAradProject } from '../io/files.js';
 import { buildGraph, traceUp, findUnvalidatedAssumptions } from '../graph/graph.js';
 import { formatTraceTree, colorId, yellow, dim } from '../display/format.js';
+import type { Entity } from '../types.js';
 
 export function traceCommand(id: string): void {
   requireAradProject();

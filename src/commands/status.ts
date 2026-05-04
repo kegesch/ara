@@ -11,6 +11,7 @@ import {
 } from "../graph/graph.js";
 import { ARAD_DIR, readAllEntities, requireAradProject } from "../io/files.js";
 import type { Entity, EntityType } from "../types.js";
+import { ENTITY_TYPE_ORDER, allTypes } from "../entities/registry.js";
 
 export function statusCommand(): void {
 	requireAradProject();
@@ -33,15 +34,10 @@ export function statusCommand(): void {
 	console.log("");
 
 	// Count by type and status
-	const byType: Record<EntityType, Entity[]> = {
-		requirement: entities.filter((e) => e.type === "requirement"),
-		assumption: entities.filter((e) => e.type === "assumption"),
-		decision: entities.filter((e) => e.type === "decision"),
-		idea: entities.filter((e) => e.type === "idea"),
-		stakeholder: entities.filter((e) => e.type === "stakeholder"),
-		risk: entities.filter((e) => e.type === "risk"),
-		term: entities.filter((e) => e.type === "term"),
-	};
+	const byType: Record<EntityType, Entity[]> = {} as any;
+	for (const type of allTypes()) {
+		byType[type] = entities.filter((e) => e.type === type);
+	}
 
 	function statusBreakdown(list: Entity[]): string {
 		const counts = new Map<string, number>();
@@ -51,18 +47,11 @@ export function statusCommand(): void {
 		return [...counts.entries()].map(([s, c]) => `${c} ${s}`).join(", ");
 	}
 
-	for (const type of [
-		"requirement",
-		"assumption",
-		"decision",
-		"idea",
-		"risk",
-	"term",
-	] as EntityType[]) {
+	for (const type of ENTITY_TYPE_ORDER) {
 		const list = byType[type];
 		const label = type + (list.length !== 1 ? "s" : "");
 		if (list.length === 0) {
-			console.log(dim(`  0 ${label}s`));
+			console.log(dim(`  0 ${label}`));
 		} else {
 			console.log(`  ${list.length} ${label} (${statusBreakdown(list)})`);
 		}

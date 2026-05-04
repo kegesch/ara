@@ -116,6 +116,7 @@ export function importCommand(sourcePath: string, options?: { type?: string }): 
       tags: ['imported'],
       driven_by: [] as string[],
       enables: [] as string[],
+      affects: [] as string[],
       body: parsed.body,
       filePath: '',
     };

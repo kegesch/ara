@@ -2,6 +2,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { ARAD_DIR, initAradDir } from "../io/files.js";
+import { allDescriptors } from "../entities/registry.js";
 
 export function initCommand(): void {
 	const dir = process.cwd();
@@ -18,11 +19,9 @@ export function initCommand(): void {
 	console.log(`Initialized ARAD project "${projectName}":`);
 	console.log(`  ${ARAD_DIR}/`);
 	console.log(`    arad.yaml`);
-	console.log(`    requirements/`);
-	console.log(`    assumptions/`);
-	console.log(`    decisions/`);
-	console.log(`    ideas/`);
-	console.log(`    stakeholders/`);
+	for (const desc of allDescriptors()) {
+		console.log(`    ${desc.folder}/`);
+	}
 	console.log("");
 	console.log("Commit .arad/ to git — it lives alongside your code.");
 }

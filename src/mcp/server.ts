@@ -18,17 +18,19 @@ import {
 	writeEntity,
 } from "../io/files.js";
 import { searchEntities } from "../search/fuzzy.js";
-import type { Entity } from "../types.js";
-import { ENTITY_CONFIG } from "../types.js";
+import type { Entity, EntityType } from "../types.js";
+import { allTypes, getDescriptor, ENTITY_CONFIG } from "../entities/registry.js";
+import type { RawFrontmatter } from "../entities/descriptor.js";
 
 const server = new McpServer({
 	name: "arad",
 	version: "0.1.0",
 });
 
-// Helper: serialize entity to plain JSON object
+// Helper: serialize entity to plain JSON object (using descriptors)
 function entityToJson(entity: Entity) {
-	return {
+	const desc = getDescriptor(entity.type);
+	const base = {
 		id: entity.id,
 		type: entity.type,
 		title: entity.title,
@@ -36,38 +38,8 @@ function entityToJson(entity: Entity) {
 		date: entity.date,
 		tags: entity.tags,
 		...(entity.context ? { context: entity.context } : {}),
-		...(entity.type === "requirement"
-			? {
-					derived_from: (entity as any).derived_from,
-					conflicts_with: (entity as any).conflicts_with,
-					requested_by: (entity as any).requested_by,
-				}
-			: {}),
-		...(entity.type === "assumption"
-			? {
-					promoted_to: (entity as any).promoted_to,
-				}
-			: {}),
-		...(entity.type === "decision"
-			? {
-					driven_by: (entity as any).driven_by,
-					enables: (entity as any).enables,
-					supersedes: (entity as any).supersedes,
-					affects: (entity as any).affects,
-				}
-			: {}),
-		...(entity.type === "idea"
-			? {
-					inspired_by: (entity as any).inspired_by,
-					promoted_to: (entity as any).promoted_to,
-				}
-			: {}),
-		...(entity.type === "risk"
-			? {
-					mitigated_by: (entity as any).mitigated_by,
-				}
-			: {}),
 	};
+	return { ...base, ...desc.jsonFields(entity as any) };
 }
 
 // ─── Tool: arad_list ───
@@ -336,10 +308,11 @@ server.tool(
 			};
 		}
 
+		const desc = getDescriptor(type);
 		const config = ENTITY_CONFIG[type];
 		const id = getNextId(process.cwd(), type);
 		const date = new Date().toISOString().split("T")[0];
-		const entityStatus = status || config.statuses[0];
+		const entityStatus = status || desc.defaultStatus;
 		const entityTags = tags
 			? tags
 					.split(",")
@@ -347,9 +320,40 @@ server.tool(
 					.filter(Boolean)
 			: [];
 
-		let entity: Entity;
+		// Build meta for descriptor parse
+		const meta: RawFrontmatter = {
+			id,
+			title,
+			status: entityStatus,
+			date,
+			tags: entityTags,
+			context: context || undefined,
+			driven_by: driven_by
+				? driven_by
+						.split(",")
+						.map((s) => s.trim())
+						.filter(Boolean)
+				: [],
+			derived_from: derived_from
+				? derived_from
+						.split(",")
+						.map((s) => s.trim())
+						.filter(Boolean)
+				: [],
+			conflicts_with: [],
+			requested_by: [],
+			enables: [],
+			affects: [],
+			inspired_by: inspired_by
+				? inspired_by
+						.split(",")
+						.map((s) => s.trim())
+						.filter(Boolean)
+				: [],
+			mitigated_by: [],
+		};
 
-		const baseFields = {
+		const base = {
 			id,
 			title,
 			date,
@@ -359,80 +363,7 @@ server.tool(
 			filePath: "",
 		};
 
-		switch (type) {
-			case "requirement":
-				entity = {
-					type: "requirement",
-					...baseFields,
-					status: entityStatus as any,
-					derived_from: derived_from
-						? derived_from
-								.split(",")
-								.map((s) => s.trim())
-								.filter(Boolean)
-						: [],
-					conflicts_with: [],
-					requested_by: [],
-				};
-				break;
-			case "assumption":
-				entity = {
-					type: "assumption",
-					...baseFields,
-					status: entityStatus as any,
-				};
-				break;
-			case "decision":
-				entity = {
-					type: "decision",
-					...baseFields,
-					status: entityStatus as any,
-					driven_by: driven_by
-						? driven_by
-								.split(",")
-								.map((s) => s.trim())
-								.filter(Boolean)
-						: [],
-					enables: [],
-					affects: [],
-				};
-				break;
-			case "idea":
-				entity = {
-					type: "idea",
-					...baseFields,
-					status: entityStatus as any,
-					inspired_by: inspired_by
-						? inspired_by
-								.split(",")
-								.map((s) => s.trim())
-								.filter(Boolean)
-						: [],
-				};
-				break;
-			case "stakeholder":
-				entity = {
-					type: "stakeholder",
-					...baseFields,
-					status: entityStatus as any,
-				};
-				break;
-			case "risk":
-				entity = {
-					type: "risk",
-					...baseFields,
-					status: entityStatus as any,
-					mitigated_by: [],
-				};
-				break;
-			case "term":
-				entity = {
-					type: "term",
-					...baseFields,
-					status: entityStatus as any,
-				};
-				break;
-		}
+		const entity: Entity = desc.parse(meta, base);
 
 		const relPath = writeEntity(process.cwd(), entity);
 		return {
@@ -666,47 +597,23 @@ server.tool(
 		}
 
 		const { updateEntity } = await import("../io/files.js");
-		switch (fromEntity.type) {
-			case "decision":
+		const { getRelField } = await import("../entities/registry.js");
+		const relField = getRelField(fromEntity.type, edgeType as any);
+		if (relField) {
+			if (relField.isArray) {
+				const arr = (fromEntity as any)[relField.field] as string[];
+				if (!arr.includes(to_id)) arr.push(to_id);
+			} else {
+				(fromEntity as any)[relField.field] = to_id;
 				if (
-					edgeType === "driven_by" &&
-					!(fromEntity as any).driven_by.includes(to_id)
+					edgeType === "supersedes" &&
+					toEntity.type === "decision" &&
+					toEntity.status !== "superseded"
 				) {
-					(fromEntity as any).driven_by.push(to_id);
-				} else if (
-					edgeType === "enables" &&
-					!(fromEntity as any).enables.includes(to_id)
-				) {
-					(fromEntity as any).enables.push(to_id);
-				} else if (edgeType === "supersedes") {
-					(fromEntity as any).supersedes = to_id;
-					if (
-						toEntity.type === "decision" &&
-						toEntity.status !== "superseded"
-					) {
-						toEntity.status = "superseded";
-						updateEntity(process.cwd(), toEntity);
-					}
+					toEntity.status = "superseded";
+					updateEntity(process.cwd(), toEntity);
 				}
-				break;
-			case "requirement":
-				if (
-					edgeType === "derived_from" &&
-					!(fromEntity as any).derived_from.includes(to_id)
-				) {
-					(fromEntity as any).derived_from.push(to_id);
-				} else if (edgeType === "conflicts_with") {
-					if (!(fromEntity as any).conflicts_with.includes(to_id))
-						(fromEntity as any).conflicts_with.push(to_id);
-					if (
-						toEntity.type === "requirement" &&
-						!(toEntity as any).conflicts_with.includes(from_id)
-					) {
-						(toEntity as any).conflicts_with.push(from_id);
-						updateEntity(process.cwd(), toEntity);
-					}
-				}
-				break;
+			}
 		}
 		updateEntity(process.cwd(), fromEntity);
 		return {

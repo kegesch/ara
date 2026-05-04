@@ -1,7 +1,7 @@
 ---
 id: D-003
 title: "Use three entity types: Requirement (R-xxx), Assumption (A-xxx), Decision (D-xxx)"
-status: accepted
+status: superseded
 date: 2026-05-01
 tags: [model]
 driven_by: [R-002]

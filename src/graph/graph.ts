@@ -1,5 +1,6 @@
 // In-memory graph engine for ARAD
 
+import { getDescriptor } from "../entities/registry";
 import type { AradGraph, Edge, EdgeType, Entity } from "../types";
 
 /**
@@ -26,54 +27,9 @@ export function buildGraph(entities: Entity[]): AradGraph {
 	}
 
 	for (const entity of entities) {
-		switch (entity.type) {
-			case "requirement":
-				for (const parentId of entity.derived_from) {
-					addEdge(g, entity.id, parentId, "derived_from");
-				}
-				for (const conflictId of entity.conflicts_with) {
-					addEdge(g, entity.id, conflictId, "conflicts_with");
-				}
-				for (const stakeholderId of entity.requested_by) {
-					addEdge(g, entity.id, stakeholderId, "requested_by");
-				}
-				break;
-			case "assumption":
-				if (entity.promoted_to) {
-					addEdge(g, entity.id, entity.promoted_to, "promoted_to");
-				}
-				break;
-			case "decision":
-				for (const drivenById of entity.driven_by) {
-					addEdge(g, entity.id, drivenById, "driven_by");
-				}
-				for (const enablesId of entity.enables) {
-					addEdge(g, entity.id, enablesId, "enables");
-				}
-				if (entity.supersedes) {
-					addEdge(g, entity.id, entity.supersedes, "supersedes");
-				}
-				for (const stakeholderId of entity.affects) {
-					addEdge(g, entity.id, stakeholderId, "affects");
-				}
-				break;
-			case "idea":
-				for (const inspiredById of entity.inspired_by) {
-					addEdge(g, entity.id, inspiredById, "inspired_by");
-				}
-				if (entity.promoted_to) {
-					addEdge(g, entity.id, entity.promoted_to, "promoted_to");
-				}
-				break;
-			case "stakeholder":
-				break;
-			case "risk":
-				for (const decisionId of entity.mitigated_by) {
-					addEdge(g, entity.id, decisionId, "mitigated_by");
-				}
-				break;
-			case "term":
-				break;
+		const desc = getDescriptor(entity.type);
+		for (const edge of desc.edges(entity as any)) {
+			addEdge(g, entity.id, edge.to, edge.type);
 		}
 	}
 
@@ -99,9 +55,6 @@ export function getDependents(g: AradGraph, id: string): Entity[] {
 	const result: Entity[] = [];
 	const incoming = g.incoming.get(id) ?? [];
 	for (const edge of incoming) {
-		// driven_by: edge.from is a decision that depends on edge.to (the query id)
-		// derived_from: edge.from is a requirement derived from edge.to
-		// enables: edge.from is a decision enabled by edge.to
 		if (
 			[
 				"driven_by",

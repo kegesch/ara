@@ -10,7 +10,8 @@ import {
 	writeEntity,
 } from "../io/files.js";
 import type { Entity, EntityType } from "../types.js";
-import { ENTITY_CONFIG } from "../types.js";
+import { getDescriptor, ENTITY_CONFIG } from "../entities/registry.js";
+import type { RawFrontmatter } from "../entities/descriptor.js";
 
 function readline(): Promise<string> {
 	return new Promise((resolve) => {
@@ -74,6 +75,7 @@ export async function addCommand(
 		return;
 	}
 
+	const desc = getDescriptor(type);
 	const config = ENTITY_CONFIG[type];
 	const id = getNextId(process.cwd(), type);
 	const date = new Date().toISOString().split("T")[0];
@@ -86,10 +88,10 @@ export async function addCommand(
 			config.statuses[0],
 		);
 	}
-	if (!status) status = config.statuses[0];
-	if (!config.statuses.includes(status)) {
+	if (!status) status = desc.defaultStatus;
+	if (!desc.statuses.includes(status)) {
 		console.error(
-			`Invalid status "${status}". Must be one of: ${config.statuses.join(", ")}`,
+			`Invalid status "${status}". Must be one of: ${desc.statuses.join(", ")}`,
 		);
 		return;
 	}
@@ -137,15 +139,24 @@ export async function addCommand(
 			: [];
 	}
 
-	let entity: Entity;
+	// Build a RawFrontmatter from the CLI options to feed to the descriptor's parse
+	const meta: RawFrontmatter = {
+		id,
+		title: title.trim(),
+		status,
+		date,
+		tags,
+		context: context || undefined,
+	};
 
+	// Type-specific prompt/field handling
 	switch (type) {
 		case "requirement": {
 			let derivedInput = options?.derivedFrom || "";
 			if (!derivedInput && isInteractive) {
 				derivedInput = await prompt("Derived from (R-IDs, comma-separated): ");
 			}
-			const derived = parseIds(derivedInput);
+			meta.derived_from = parseIds(derivedInput);
 
 			let conflictsInput = options?.conflictsWith || "";
 			if (!conflictsInput && isInteractive) {
@@ -153,36 +164,8 @@ export async function addCommand(
 					"Conflicts with (R-IDs, comma-separated): ",
 				);
 			}
-			const conflicts = parseIds(conflictsInput);
-
-			entity = {
-				type: "requirement",
-				id,
-				title: title.trim(),
-				status: status as any,
-				date,
-				tags,
-				context: context || undefined,
-				derived_from: derived,
-				conflicts_with: conflicts,
-				requested_by: [],
-				body: "",
-				filePath: "",
-			};
-			break;
-		}
-		case "assumption": {
-			entity = {
-				type: "assumption",
-				id,
-				title: title.trim(),
-				status: status as any,
-				date,
-				tags,
-				context: context || undefined,
-				body: "",
-				filePath: "",
-			};
+			meta.conflicts_with = parseIds(conflictsInput);
+			meta.requested_by = [];
 			break;
 		}
 		case "decision": {
@@ -190,34 +173,20 @@ export async function addCommand(
 			if (!drivenInput && isInteractive) {
 				drivenInput = await prompt("Driven by (R/A-IDs, comma-separated): ");
 			}
-			const driven_by = parseIds(drivenInput);
+			meta.driven_by = parseIds(drivenInput);
 
 			let enablesInput = options?.enables || "";
 			if (!enablesInput && isInteractive) {
 				enablesInput = await prompt("Enables (D-IDs, comma-separated): ");
 			}
-			const enables = parseIds(enablesInput);
+			meta.enables = parseIds(enablesInput);
 
 			let supersedesInput = options?.supersedes || "";
 			if (!supersedesInput && isInteractive) {
 				supersedesInput = await prompt("Supersedes (D-ID, or empty): ");
 			}
-
-			entity = {
-				type: "decision",
-				id,
-				title: title.trim(),
-				status: status as any,
-				date,
-				tags,
-				context: context || undefined,
-				driven_by,
-				enables,
-				supersedes: supersedesInput.trim() || undefined,
-				affects: [],
-				body: "",
-				filePath: "",
-			};
+			meta.supersedes = supersedesInput.trim() || undefined;
+			meta.affects = [];
 			break;
 		}
 		case "idea": {
@@ -225,66 +194,27 @@ export async function addCommand(
 			if (!inspiredInput && isInteractive) {
 				inspiredInput = await prompt("Inspired by (IDs, comma-separated): ");
 			}
-			const inspired_by = parseIds(inspiredInput);
-
-			entity = {
-				type: "idea",
-				id,
-				title: title.trim(),
-				status: status as any,
-				date,
-				tags,
-				context: context || undefined,
-				inspired_by,
-				body: "",
-				filePath: "",
-			};
-			break;
-		}
-		case "stakeholder": {
-			entity = {
-				type: "stakeholder",
-				id,
-				title: title.trim(),
-				status: status as any,
-				date,
-				tags,
-				context: context || undefined,
-				body: "",
-				filePath: "",
-			};
+			meta.inspired_by = parseIds(inspiredInput);
 			break;
 		}
 		case "risk": {
-			entity = {
-				type: "risk",
-				id,
-				title: title.trim(),
-				status: status as any,
-				date,
-				tags,
-				context: context || undefined,
-				mitigated_by: [],
-				body: "",
-				filePath: "",
-			};
-			break;
-		}
-		case "term": {
-			entity = {
-				type: "term",
-				id,
-				title: title.trim(),
-				status: status as any,
-				date,
-				tags,
-				context: context || undefined,
-				body: "",
-				filePath: "",
-			};
+			meta.mitigated_by = [];
 			break;
 		}
 	}
+
+	const base = {
+		id,
+		title: title.trim(),
+		date,
+		tags,
+		body: "",
+		filePath: "",
+		context: context || undefined,
+	};
+
+	// Use descriptor to construct the entity
+	const entity: Entity = desc.parse(meta, base);
 
 	// Resolve body content
 	const templateBody = config.template(title.trim());

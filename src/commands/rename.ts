@@ -5,19 +5,12 @@ import { colorId, dim, green, yellow } from "../display/format.js";
 import {
 	readAllEntities,
 	requireAradProject,
-	slugify,
 	updateEntity,
 	writeEntity,
 } from "../io/files.js";
-import type {
-	Assumption,
-	Decision,
-	Entity,
-	EntityType,
-	Idea,
-	Requirement,
-} from "../types.js";
-import { ENTITY_CONFIG, getTypeFromId } from "../types.js";
+import type { Entity, EntityType } from "../types.js";
+import { ENTITY_CONFIG, renameRefs } from "../entities/registry.js";
+import { getTypeFromId } from "../types.js";
 
 export function renameCommand(
 	id: string,
@@ -69,69 +62,11 @@ export function renameCommand(
 	removeOldFile(oldId, entity.type);
 	const relPath = writeEntity(process.cwd(), entity);
 
-	// Update references in all other entities
+	// Update references in all other entities using descriptor-driven renameRefs
 	let updatedRefs = 0;
 	for (const other of entities) {
 		if (other.id === newId) continue; // skip the renamed entity itself
-		let changed = false;
-
-		switch (other.type) {
-			case "decision": {
-				const d = other as Decision;
-				if (d.driven_by.includes(oldId)) {
-					d.driven_by = d.driven_by.map((ref) => (ref === oldId ? newId : ref));
-					changed = true;
-				}
-				if (d.enables.includes(oldId)) {
-					d.enables = d.enables.map((ref) => (ref === oldId ? newId : ref));
-					changed = true;
-				}
-				if (d.supersedes === oldId) {
-					d.supersedes = newId;
-					changed = true;
-				}
-				break;
-			}
-			case "requirement": {
-				const r = other as Requirement;
-				if (r.derived_from.includes(oldId)) {
-					r.derived_from = r.derived_from.map((ref) =>
-						ref === oldId ? newId : ref,
-					);
-					changed = true;
-				}
-				if (r.conflicts_with.includes(oldId)) {
-					r.conflicts_with = r.conflicts_with.map((ref) =>
-						ref === oldId ? newId : ref,
-					);
-					changed = true;
-				}
-				break;
-			}
-			case "assumption": {
-				const a = other as Assumption;
-				if (a.promoted_to === oldId) {
-					a.promoted_to = newId;
-					changed = true;
-				}
-				break;
-			}
-			case "idea": {
-				const i = other as Idea;
-				if (i.inspired_by.includes(oldId)) {
-					i.inspired_by = i.inspired_by.map((ref) =>
-						ref === oldId ? newId : ref,
-					);
-					changed = true;
-				}
-				if (i.promoted_to === oldId) {
-					i.promoted_to = newId;
-					changed = true;
-				}
-				break;
-			}
-		}
-
+		const changed = renameRefs(other, oldId, newId);
 		if (changed) {
 			updateEntity(process.cwd(), other);
 			updatedRefs++;
