@@ -2,6 +2,7 @@
 
 import { colorId, dim, green, red, yellow } from "../display/format.js";
 import {
+	isAradProject,
 	readEntityById,
 	requireAradProject,
 	updateEntity,
@@ -18,33 +19,52 @@ import {
 	getRelField,
 	inferEdgeType,
 } from "../entities/registry.js";
+import {
+	AmbiguousEdge,
+	DuplicateLink,
+	EntityNotFound,
+	InvalidEdge,
+	NoRelationshipFound,
+	NoValidEdge,
+	NotAnAradProject,
+	SelfReference,
+} from "../core/errors.js";
 
 export { VALID_EDGES } from "../entities/registry.js";
 
-export function linkCommand(
+// ─── Pure logic: link ───
+
+export interface LinkOptions {
+	type?: string;
+}
+
+export interface LinkResult {
+	fromId: string;
+	toId: string;
+	edgeType: EdgeType;
+	sideEffects: string[];
+}
+
+/**
+ * Create a relationship between two entities.
+ *
+ * Validates IDs, edge types, and handles side effects (supersedes → mark old as superseded,
+ * conflicts_with → add reverse).
+ */
+export function performLink(
+	dir: string,
 	fromId: string,
 	toId: string,
-	options?: { type?: string },
-): void {
-	requireAradProject();
+	options?: LinkOptions,
+): LinkResult {
+	if (!isAradProject(dir)) throw new NotAnAradProject();
 
-	// Validate IDs
-	const fromEntity = readEntityById(process.cwd(), fromId);
-	if (!fromEntity) {
-		console.error(`${colorId(fromId)} not found.`);
-		process.exit(1);
-	}
-	const toEntity = readEntityById(process.cwd(), toId);
-	if (!toEntity) {
-		console.error(`${colorId(toId)} not found.`);
-		process.exit(1);
-	}
+	const fromEntity = readEntityById(dir, fromId);
+	if (!fromEntity) throw new EntityNotFound(fromId);
+	const toEntity = readEntityById(dir, toId);
+	if (!toEntity) throw new EntityNotFound(toId);
 
-	// Self-reference check
-	if (fromId === toId) {
-		console.error(red("Cannot link an entity to itself."));
-		process.exit(1);
-	}
+	if (fromId === toId) throw new SelfReference(fromId);
 
 	// Determine edge type
 	let edgeType: EdgeType | null = null;
@@ -56,20 +76,10 @@ export function linkCommand(
 			const key = `${fromEntity.type}-${toEntity.type}`;
 			const valid = VALID_EDGES[key];
 			if (valid && valid.length > 1) {
-				console.error(
-					yellow(
-						`Ambiguous relationship between ${fromEntity.type} → ${toEntity.type}.`,
-					),
-				);
-				console.error(`  Specify --type: ${valid.join(", ")}`);
+				throw new AmbiguousEdge(fromEntity.type, toEntity.type, valid);
 			} else {
-				console.error(
-					red(
-						`No valid relationship from ${fromEntity.type} (${fromId}) to ${toEntity.type} (${toId}).`,
-					),
-				);
+				throw new NoValidEdge(fromEntity.type, toEntity.type);
 			}
-			process.exit(1);
 		}
 	}
 
@@ -77,65 +87,42 @@ export function linkCommand(
 	const key = `${fromEntity.type}-${toEntity.type}`;
 	const validForPair = VALID_EDGES[key];
 	if (!validForPair || !validForPair.includes(edgeType)) {
-		console.error(
-			red(
-				`Edge type "${edgeType}" is not valid for ${fromEntity.type} → ${toEntity.type}.`,
-			),
+		throw new InvalidEdge(
+			fromEntity.type,
+			toEntity.type,
+			edgeType,
+			validForPair ?? [],
 		);
-		if (validForPair) {
-			console.error(`  Valid types: ${validForPair.join(", ")}`);
-		} else {
-			console.error(`  No valid edge types for this entity pair.`);
-		}
-		process.exit(1);
 	}
 
 	// Check the field exists on from entity
 	const relField = getRelField(fromEntity.type, edgeType);
-	if (!relField) {
-		console.error(red(`Cannot apply "${edgeType}" to a ${fromEntity.type}.`));
-		process.exit(1);
-	}
 
 	// Check for duplicate
-	if (relField.isArray) {
+	if (relField?.isArray) {
 		const arr = (fromEntity as any)[relField.field] as string[];
 		if (arr.includes(toId)) {
-			console.log(
-				yellow(
-					`${colorId(fromId)} already has ${edgeType} → ${colorId(toId)}.`,
-				),
-			);
-			return;
+			throw new DuplicateLink(fromId, toId, edgeType);
 		}
-		// Add to array
 		arr.push(toId);
-	} else {
+	} else if (relField) {
 		const existing = (fromEntity as any)[relField.field] as string | undefined;
 		if (existing === toId) {
-			console.log(
-				yellow(
-					`${colorId(fromId)} already has ${edgeType} → ${colorId(toId)}.`,
-				),
-			);
-			return;
+			throw new DuplicateLink(fromId, toId, edgeType);
 		}
-		if (existing) {
-			console.error(
-				yellow(
-					`${colorId(fromId)} already has ${edgeType} → ${colorId(existing)}. Overwriting.`,
-				),
-			);
-		}
+		// Note: we allow overwriting existing scalar refs (the CLI warns, but the pure function just does it)
 		(fromEntity as any)[relField.field] = toId;
 	}
+
+	const sideEffects: string[] = [];
 
 	// If conflicts_with, add the reverse too
 	if (edgeType === "conflicts_with") {
 		const toReq = toEntity as Requirement;
 		if (!toReq.conflicts_with.includes(fromId)) {
 			toReq.conflicts_with.push(fromId);
-			updateEntity(process.cwd(), toReq);
+			updateEntity(dir, toEntity);
+			sideEffects.push(`Added reverse conflicts_with: ${toId} → ${fromId}`);
 		}
 	}
 
@@ -144,31 +131,44 @@ export function linkCommand(
 		const toDecision = toEntity as Decision;
 		if (toDecision.status !== "superseded") {
 			toDecision.status = "superseded";
-			updateEntity(process.cwd(), toDecision);
-			console.log(dim(`  Marked ${colorId(toId)} as superseded.`));
+			updateEntity(dir, toEntity);
+			sideEffects.push(`Marked ${toId} as superseded`);
 		}
 	}
 
 	// Write updated entity
-	updateEntity(process.cwd(), fromEntity);
-	console.log(
-		green(`✓ Linked ${colorId(fromId)} ──${edgeType}──▶ ${colorId(toId)}`),
-	);
+	updateEntity(dir, fromEntity);
+
+	return { fromId, toId, edgeType, sideEffects };
 }
 
-export function unlinkCommand(
+// ─── Pure logic: unlink ───
+
+export interface UnlinkOptions {
+	type?: string;
+}
+
+export interface UnlinkResult {
+	fromId: string;
+	toId: string;
+	removedEdgeTypes: EdgeType[];
+	sideEffects: string[];
+}
+
+/**
+ * Remove a relationship between two entities.
+ */
+export function performUnlink(
+	dir: string,
 	fromId: string,
 	toId: string,
-	options?: { type?: string },
-): void {
-	requireAradProject();
+	options?: UnlinkOptions,
+): UnlinkResult {
+	if (!isAradProject(dir)) throw new NotAnAradProject();
 
-	const fromEntity = readEntityById(process.cwd(), fromId);
-	if (!fromEntity) {
-		console.error(`${colorId(fromId)} not found.`);
-		process.exit(1);
-	}
-	const toEntity = readEntityById(process.cwd(), toId);
+	const fromEntity = readEntityById(dir, fromId);
+	if (!fromEntity) throw new EntityNotFound(fromId);
+	const toEntity = readEntityById(dir, toId);
 	// Don't require toEntity to exist — might be cleaning up a dangling ref
 
 	// Determine which edge types to check
@@ -176,11 +176,11 @@ export function unlinkCommand(
 	if (options?.type) {
 		edgeTypesToCheck = [options.type as EdgeType];
 	} else {
-		// Check all possible fields on fromEntity
 		edgeTypesToCheck = getAllRelFields(fromEntity.type);
 	}
 
-	let removed = false;
+	const removedEdgeTypes: EdgeType[] = [];
+	const sideEffects: string[] = [];
 
 	for (const edgeType of edgeTypesToCheck) {
 		const relField = getRelField(fromEntity.type, edgeType);
@@ -191,18 +191,12 @@ export function unlinkCommand(
 			const idx = arr.indexOf(toId);
 			if (idx !== -1) {
 				arr.splice(idx, 1);
-				removed = true;
-				console.log(
-					green(`✓ Removed ${edgeType}: ${colorId(fromId)} → ${colorId(toId)}`),
-				);
+				removedEdgeTypes.push(edgeType);
 			}
 		} else {
 			if ((fromEntity as any)[relField.field] === toId) {
 				(fromEntity as any)[relField.field] = undefined;
-				removed = true;
-				console.log(
-					green(`✓ Removed ${edgeType}: ${colorId(fromId)} → ${colorId(toId)}`),
-				);
+				removedEdgeTypes.push(edgeType);
 			}
 		}
 	}
@@ -217,23 +211,121 @@ export function unlinkCommand(
 		const idx = toReq.conflicts_with.indexOf(fromId);
 		if (idx !== -1) {
 			toReq.conflicts_with.splice(idx, 1);
-			updateEntity(process.cwd(), toReq);
-			console.log(
-				green(
-					`✓ Removed reverse conflicts_with: ${colorId(toId)} → ${colorId(fromId)}`,
-				),
+			updateEntity(dir, toEntity);
+			sideEffects.push(
+				`Removed reverse conflicts_with: ${toId} → ${fromId}`,
 			);
 		}
 	}
 
-	if (!removed) {
-		console.log(
-			yellow(
-				`No relationship found from ${colorId(fromId)} to ${colorId(toId)}.`,
-			),
-		);
-		return;
+	if (removedEdgeTypes.length === 0) {
+		throw new NoRelationshipFound(fromId, toId);
 	}
 
-	updateEntity(process.cwd(), fromEntity);
+	updateEntity(dir, fromEntity);
+
+	return { fromId, toId, removedEdgeTypes, sideEffects };
+}
+
+// ─── CLI entry points ───
+
+export function linkCommand(
+	fromId: string,
+	toId: string,
+	options?: LinkOptions,
+): void {
+	requireAradProject();
+
+	try {
+		const result = performLink(process.cwd(), fromId, toId, options);
+
+		console.log(
+			green(
+				`✓ Linked ${colorId(result.fromId)} ──${result.edgeType}──▶ ${colorId(result.toId)}`,
+			),
+		);
+		for (const effect of result.sideEffects) {
+			console.log(dim(`  ${effect}`));
+		}
+	} catch (e) {
+		handleLinkError(e);
+	}
+}
+
+export function unlinkCommand(
+	fromId: string,
+	toId: string,
+	options?: UnlinkOptions,
+): void {
+	requireAradProject();
+
+	try {
+		const result = performUnlink(process.cwd(), fromId, toId, options);
+
+		for (const edgeType of result.removedEdgeTypes) {
+			console.log(
+				green(
+					`✓ Removed ${edgeType}: ${colorId(result.fromId)} → ${colorId(result.toId)}`,
+				),
+			);
+		}
+		for (const effect of result.sideEffects) {
+			console.log(dim(`  ${effect}`));
+		}
+	} catch (e) {
+		if (e instanceof NoRelationshipFound) {
+			console.log(
+				yellow(
+					`No relationship found from ${colorId(e.fromId)} to ${colorId(e.toId)}.`,
+				),
+			);
+			return;
+		}
+		if (e instanceof EntityNotFound) {
+			console.error(`${colorId(e.id)} not found.`);
+			process.exit(1);
+		}
+		throw e;
+	}
+}
+
+function handleLinkError(e: unknown): never | void {
+	if (e instanceof EntityNotFound) {
+		console.error(`${colorId(e.id)} not found.`);
+		process.exit(1);
+	}
+	if (e instanceof SelfReference) {
+		console.error(red(e.message));
+		process.exit(1);
+	}
+	if (e instanceof AmbiguousEdge) {
+		console.error(
+			yellow(
+				`Ambiguous relationship between ${e.fromType} → ${e.toType}.`,
+			),
+		);
+		console.error(`  Specify --type: ${e.validTypes.join(", ")}`);
+		process.exit(1);
+	}
+	if (e instanceof NoValidEdge) {
+		console.error(
+			red(
+				`No valid relationship from ${e.fromType} to ${e.toType}.`,
+			),
+		);
+		process.exit(1);
+	}
+	if (e instanceof InvalidEdge) {
+		console.error(red(e.message));
+		process.exit(1);
+	}
+	if (e instanceof DuplicateLink) {
+		console.log(
+			yellow(
+				`${colorId(e.fromId)} already has ${e.edgeType} → ${colorId(e.toId)}.`,
+			),
+		);
+		return; // not an error exit
+	}
+	throw e;
 }

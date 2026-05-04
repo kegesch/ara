@@ -10,120 +10,110 @@ import {
 } from "../display/format.js";
 import { buildGraph, getDependents, impactAnalysis } from "../graph/graph.js";
 import {
+	getNextId,
+	isAradProject,
 	readAllEntities,
 	requireAradProject,
 	updateEntity,
+	writeEntity,
 } from "../io/files.js";
 import type { Assumption, Entity, Idea } from "../types.js";
+import {
+	AlreadyInStatus,
+	EntityNotFound,
+	NotAnAradProject,
+	WrongType,
+} from "../core/errors.js";
 
-export function validateCommand(id: string): void {
-	requireAradProject();
-	const entities = readAllEntities();
+// ─── Pure logic: validate ───
+
+export interface ValidateResult {
+	entity: Assumption;
+}
+
+export function performValidate(dir: string, id: string): ValidateResult {
+	if (!isAradProject(dir)) throw new NotAnAradProject();
+
+	const entities = readAllEntities(dir);
 	const entity = entities.find((e) => e.id === id);
-
-	if (!entity) {
-		console.error(`Entity ${colorId(id)} not found.`);
-		return;
-	}
-
-	if (entity.type !== "assumption") {
-		console.error(
-			`${colorId(id)} is a ${entity.type}, not an assumption. Only assumptions can be validated.`,
-		);
-		return;
-	}
-
-	if (entity.status === "validated") {
-		console.log(`${colorId(id)} is already validated.`);
-		return;
-	}
+	if (!entity) throw new EntityNotFound(id);
+	if (entity.type !== "assumption") throw new WrongType(id, entity.type, "assumption");
+	if (entity.status === "validated") throw new AlreadyInStatus(id, "validated");
 
 	entity.status = "validated";
-	updateEntity(process.cwd(), entity);
-	console.log(green(`✓ Validated ${colorId(id)}: ${entity.title}`));
+	updateEntity(dir, entity);
+
+	return { entity };
 }
 
-export function invalidateCommand(id: string): void {
-	requireAradProject();
-	const entities = readAllEntities();
+// ─── Pure logic: invalidate ───
+
+export interface InvalidateResult {
+	entity: Assumption;
+	affected: {
+		direct: Entity[];
+		transitive: Entity[];
+	};
+}
+
+export function performInvalidate(dir: string, id: string): InvalidateResult {
+	if (!isAradProject(dir)) throw new NotAnAradProject();
+
+	const entities = readAllEntities(dir);
 	const graph = buildGraph(entities);
 	const entity = entities.find((e) => e.id === id);
-
-	if (!entity) {
-		console.error(`Entity ${colorId(id)} not found.`);
-		return;
-	}
-
-	if (entity.type !== "assumption") {
-		console.error(
-			`${colorId(id)} is a ${entity.type}, not an assumption. Only assumptions can be invalidated.`,
-		);
-		return;
-	}
-
-	if (entity.status === "invalidated") {
-		console.log(`${colorId(id)} is already invalidated.`);
-		return;
-	}
+	if (!entity) throw new EntityNotFound(id);
+	if (entity.type !== "assumption") throw new WrongType(id, entity.type, "assumption");
+	if (entity.status === "invalidated") throw new AlreadyInStatus(id, "invalidated");
 
 	entity.status = "invalidated";
-	updateEntity(process.cwd(), entity);
+	updateEntity(dir, entity);
 
-	console.log(red(`✗ Invalidated ${colorId(id)}: ${entity.title}`));
-
-	// Show impact
 	const { direct, transitive } = impactAnalysis(graph, id);
-	if (direct.length > 0) {
-		console.log("");
-		console.log(yellow("Affected decisions:"));
-		for (const dep of direct) {
-			console.log(`  ${formatEntityBrief(dep)}`);
-		}
-		if (transitive.length > 0) {
-			for (const dep of transitive) {
-				console.log(`  ${formatEntityBrief(dep)}`);
-			}
-		}
-		console.log("");
-		console.log(
-			yellow(`⚠ ${direct.length + transitive.length} entities may need review`),
-		);
-	}
+
+	return { entity, affected: { direct, transitive } };
 }
 
-export function promoteCommand(id: string): void {
-	requireAradProject();
-	const entities = readAllEntities();
-	const entity = entities.find((e) => e.id === id);
+// ─── Pure logic: promote ───
 
-	if (!entity) {
-		console.error(`Entity ${colorId(id)} not found.`);
-		return;
-	}
+export interface PromoteResult {
+	sourceEntity: Entity;
+	newEntity: Entity;
+	linkedDecisions: number;
+}
+
+export function performPromote(
+	dir: string,
+	id: string,
+	targetType?: "requirement" | "decision",
+): PromoteResult {
+	if (!isAradProject(dir)) throw new NotAnAradProject();
+
+	const entities = readAllEntities(dir);
+	const entity = entities.find((e) => e.id === id);
+	if (!entity) throw new EntityNotFound(id);
 
 	if (entity.type === "assumption") {
-		promoteAssumption(entity, entities);
+		return promoteAssumption(dir, entity, entities);
 	} else if (entity.type === "idea") {
-		promoteIdea(entity);
+		return promoteIdea(dir, entity, targetType || "requirement");
 	} else {
-		console.error(
-			`${colorId(id)} is a ${entity.type}, not an assumption or idea. Only assumptions and ideas can be promoted.`,
-		);
+		throw new WrongType(id, entity.type, "assumption or idea");
 	}
 }
 
-function promoteAssumption(entity: Assumption, entities: Entity[]): void {
+function promoteAssumption(
+	dir: string,
+	entity: Assumption,
+	entities: Entity[],
+): PromoteResult {
 	if (entity.status !== "validated") {
-		console.error(
-			`${colorId(entity.id)} must be validated before it can be promoted to a requirement.`,
+		throw new Error(
+			`${entity.id} must be validated before it can be promoted to a requirement.`,
 		);
-		console.log(`  Run: arad validate ${entity.id}`);
-		return;
 	}
 
-	const { getNextId, writeEntity } =
-		require("../io/files.js") as typeof import("../io/files.js");
-	const newId = getNextId(process.cwd(), "requirement");
+	const newId = getNextId(dir, "requirement");
 
 	const requirement = {
 		type: "requirement" as const,
@@ -139,10 +129,10 @@ function promoteAssumption(entity: Assumption, entities: Entity[]): void {
 		filePath: "",
 	};
 
-	writeEntity(process.cwd(), requirement);
+	writeEntity(dir, requirement);
 
 	entity.promoted_to = newId;
-	updateEntity(process.cwd(), entity);
+	updateEntity(dir, entity);
 
 	// Auto-link: find all decisions driven by this assumption and add the new requirement
 	const graph = buildGraph(entities);
@@ -155,31 +145,24 @@ function promoteAssumption(entity: Assumption, entities: Entity[]): void {
 			!dep.driven_by.includes(newId)
 		) {
 			dep.driven_by.push(newId);
-			updateEntity(process.cwd(), dep);
+			updateEntity(dir, dep);
 			linkedCount++;
 		}
 	}
 
-	console.log(green(`✓ Promoted ${colorId(entity.id)} → ${colorId(newId)}`));
-	console.log(`  Assumption "${entity.title}" is now requirement ${newId}`);
-	if (linkedCount > 0) {
-		console.log(
-			dim(`  Auto-linked ${linkedCount} dependent decision(s) to ${newId}`),
-		);
-	}
+	return {
+		sourceEntity: entity,
+		newEntity: requirement,
+		linkedDecisions: linkedCount,
+	};
 }
 
-function promoteIdea(entity: Idea): void {
-	// Determine target type based on CLI args or default to requirement
-	// The --to flag is parsed in index.ts and passed via environment or default
-	// For now, default to requirement. The CLI `arad promote I-001 --to decision` is handled below.
-	const targetType =
-		(process.env.__ARAD_PROMOTE_TO as "requirement" | "decision") ||
-		"requirement";
-
-	const { getNextId, writeEntity } =
-		require("../io/files.js") as typeof import("../io/files.js");
-	const newId = getNextId(process.cwd(), targetType);
+function promoteIdea(
+	dir: string,
+	entity: Idea,
+	targetType: "requirement" | "decision",
+): PromoteResult {
+	const newId = getNextId(dir, targetType);
 
 	if (targetType === "requirement") {
 		const requirement = {
@@ -195,15 +178,11 @@ function promoteIdea(entity: Idea): void {
 			body: entity.body,
 			filePath: "",
 		};
-		writeEntity(process.cwd(), requirement);
+		writeEntity(dir, requirement);
 		entity.promoted_to = newId;
 		entity.status = "promoted";
-		updateEntity(process.cwd(), entity);
-		console.log(
-			green(
-				`✓ Promoted ${colorId(entity.id)} → ${colorId(newId)} (requirement)`,
-			),
-		);
+		updateEntity(dir, entity);
+		return { sourceEntity: entity, newEntity: requirement, linkedDecisions: 0 };
 	} else {
 		const decision = {
 			type: "decision" as const,
@@ -218,14 +197,117 @@ function promoteIdea(entity: Idea): void {
 			body: entity.body,
 			filePath: "",
 		};
-		writeEntity(process.cwd(), decision);
+		writeEntity(dir, decision);
 		entity.promoted_to = newId;
 		entity.status = "promoted";
-		updateEntity(process.cwd(), entity);
-		console.log(
-			green(`✓ Promoted ${colorId(entity.id)} → ${colorId(newId)} (decision)`),
-		);
+		updateEntity(dir, entity);
+		return { sourceEntity: entity, newEntity: decision, linkedDecisions: 0 };
 	}
+}
 
-	console.log(`  Idea "${entity.title}" graduated to ${targetType} ${newId}`);
+// ─── CLI entry points ───
+
+export function validateCommand(id: string): void {
+	requireAradProject();
+	try {
+		const result = performValidate(process.cwd(), id);
+		console.log(
+			green(`✓ Validated ${colorId(result.entity.id)}: ${result.entity.title}`),
+		);
+	} catch (e) {
+		handleError(e);
+	}
+}
+
+export function invalidateCommand(id: string): void {
+	requireAradProject();
+	try {
+		const result = performInvalidate(process.cwd(), id);
+		console.log(
+			red(
+				`✗ Invalidated ${colorId(result.entity.id)}: ${result.entity.title}`,
+			),
+		);
+
+		if (result.affected.direct.length > 0) {
+			console.log("");
+			console.log(yellow("Affected decisions:"));
+			for (const dep of result.affected.direct) {
+				console.log(`  ${formatEntityBrief(dep)}`);
+			}
+			if (result.affected.transitive.length > 0) {
+				for (const dep of result.affected.transitive) {
+					console.log(`  ${formatEntityBrief(dep)}`);
+				}
+			}
+			console.log("");
+			console.log(
+				yellow(
+					`⚠ ${result.affected.direct.length + result.affected.transitive.length} entities may need review`,
+				),
+			);
+		}
+	} catch (e) {
+		handleError(e);
+	}
+}
+
+export function promoteCommand(id: string): void {
+	requireAradProject();
+
+	const targetType =
+		(process.env.__ARAD_PROMOTE_TO as "requirement" | "decision") ||
+		"requirement";
+
+	try {
+		const result = performPromote(process.cwd(), id, targetType);
+
+		console.log(
+			green(
+				`✓ Promoted ${colorId(result.sourceEntity.id)} → ${colorId(result.newEntity.id)}`,
+			),
+		);
+		if (result.sourceEntity.type === "assumption") {
+			console.log(
+				`  Assumption "${result.sourceEntity.title}" is now requirement ${result.newEntity.id}`,
+			);
+		} else {
+			console.log(
+				`  Idea "${result.sourceEntity.title}" graduated to ${targetType} ${result.newEntity.id}`,
+			);
+		}
+		if (result.linkedDecisions > 0) {
+			console.log(
+				dim(
+					`  Auto-linked ${result.linkedDecisions} dependent decision(s) to ${result.newEntity.id}`,
+				),
+			);
+		}
+	} catch (e) {
+		if (
+			e instanceof Error &&
+			e.message.includes("must be validated before")
+		) {
+			console.error(e.message);
+			console.log(`  Run: arad validate ${id}`);
+			return;
+		}
+		handleError(e);
+	}
+}
+
+function handleError(e: unknown): never | void {
+	if (e instanceof EntityNotFound) {
+		console.error(`Entity ${colorId(e.id)} not found.`);
+		return;
+	}
+	if (e instanceof WrongType) {
+		console.error(e.message);
+		return;
+	}
+	if (e instanceof AlreadyInStatus) {
+		console.log(`${colorId(e.id)} is already ${e.status}.`);
+		return;
+	}
+	throw e;
 }

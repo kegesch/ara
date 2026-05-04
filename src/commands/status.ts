@@ -9,84 +9,90 @@ import {
 	findOrphans,
 	findUnvalidatedAssumptions,
 } from "../graph/graph.js";
-import { ARAD_DIR, readAllEntities, requireAradProject } from "../io/files.js";
+import { ARAD_DIR, isAradProject, readAllEntities, requireAradProject } from "../io/files.js";
 import type { Entity, EntityType } from "../types.js";
 import { ENTITY_TYPE_ORDER, allTypes } from "../entities/registry.js";
+import { NotAnAradProject } from "../core/errors.js";
 
-export function statusCommand(): void {
-	requireAradProject();
+// ─── Pure logic types ───
+
+export interface StatusResult {
+	projectName: string;
+	entities: {
+		type: EntityType;
+		count: number;
+		statuses: Record<string, number>;
+	}[];
+	relationships: number;
+	contexts: {
+		name: string;
+		count: number;
+		types: Record<string, number>;
+	}[];
+	health: {
+		contradictions: number;
+		danglingRefs: number;
+		orphans: number;
+		unvalidatedBacking: number;
+		unvalidatedTotal: number;
+	};
+}
+
+// ─── Pure logic ───
+
+/**
+ * Get project health status as structured data.
+ */
+export function getStatus(dir: string): StatusResult {
+	if (!isAradProject(dir)) throw new NotAnAradProject();
 
 	// Read project name
 	let projectName = "project";
 	try {
-		const config = readFileSync(
-			join(process.cwd(), ARAD_DIR, "arad.yaml"),
-			"utf-8",
-		);
+		const config = readFileSync(join(dir, ARAD_DIR, "arad.yaml"), "utf-8");
 		const match = config.match(/name:\s*(.+)/);
 		if (match) projectName = match[1].trim();
 	} catch {}
 
-	const entities = readAllEntities();
+	const entities = readAllEntities(dir);
 	const graph = buildGraph(entities);
 
-	console.log(bold(`ARAD project "${projectName}"`));
-	console.log("");
-
 	// Count by type and status
-	const byType: Record<EntityType, Entity[]> = {} as any;
+	const entityCounts: StatusResult["entities"] = [];
 	for (const type of allTypes()) {
-		byType[type] = entities.filter((e) => e.type === type);
-	}
-
-	function statusBreakdown(list: Entity[]): string {
-		const counts = new Map<string, number>();
+		const list = entities.filter((e) => e.type === type);
+		const statuses: Record<string, number> = {};
 		for (const e of list) {
-			counts.set(e.status, (counts.get(e.status) ?? 0) + 1);
+			statuses[e.status] = (statuses[e.status] ?? 0) + 1;
 		}
-		return [...counts.entries()].map(([s, c]) => `${c} ${s}`).join(", ");
+		entityCounts.push({ type, count: list.length, statuses });
 	}
-
-	for (const type of ENTITY_TYPE_ORDER) {
-		const list = byType[type];
-		const label = type + (list.length !== 1 ? "s" : "");
-		if (list.length === 0) {
-			console.log(dim(`  0 ${label}`));
-		} else {
-			console.log(`  ${list.length} ${label} (${statusBreakdown(list)})`);
-		}
-	}
-
-	console.log(`  ${graph.edges.length} relationships`);
-	console.log("");
 
 	// Context breakdown
+	const contexts: StatusResult["contexts"] = [];
 	if (
 		graph.byContext.size > 1 ||
 		(graph.byContext.size === 1 && graph.byContext.has("") === false)
 	) {
-		console.log(bold("Contexts:"));
 		const sortedContexts = [...graph.byContext.entries()].sort((a, b) => {
-			// Empty (no context) goes last
 			if (a[0] === "") return 1;
 			if (b[0] === "") return -1;
 			return a[0].localeCompare(b[0]);
 		});
 		for (const [ctx, ctxEntities] of sortedContexts) {
-			const label = ctx || "(no context)";
-			const types = new Map<string, number>();
+			const types: Record<string, number> = {};
 			for (const e of ctxEntities) {
-				types.set(e.type, (types.get(e.type) ?? 0) + 1);
+				types[e.type] = (types[e.type] ?? 0) + 1;
 			}
-			const breakdown = [...types.entries()]
-				.map(([t, c]) => `${c} ${t}${c !== 1 ? "s" : ""}`)
-				.join(", ");
-			console.log(`  ${label}: ${ctxEntities.length} entities (${breakdown})`);
+			contexts.push({
+				name: ctx || "(no context)",
+				count: ctxEntities.length,
+				types,
+			});
 		}
-		console.log("");
 	}
 
-	// Quick health indicators
+	// Health indicators
 	const contradictions = findContradictions(graph);
 	const danglers = findDanglingRefs(graph);
 	const orphans = findOrphans(graph);
@@ -96,32 +102,82 @@ export function statusCommand(): void {
 		return incoming.some((e) => e.type === "driven_by");
 	});
 
-	if (contradictions.length > 0) {
-		console.log(red(`  ⚡ ${contradictions.length} contradiction(s)`));
+	return {
+		projectName,
+		entities: entityCounts,
+		relationships: graph.edges.length,
+		contexts,
+		health: {
+			contradictions: contradictions.length,
+			danglingRefs: danglers.length,
+			orphans: orphans.length,
+			unvalidatedBacking: unvalidatedBacking.length,
+			unvalidatedTotal: unvalidated.length,
+		},
+	};
+}
+
+// ─── CLI entry point ───
+
+export function statusCommand(): void {
+	requireAradProject();
+
+	const result = getStatus(process.cwd());
+
+	console.log(bold(`ARAD project "${result.projectName}"`));
+	console.log("");
+
+	for (const entry of result.entities) {
+		const label = entry.type + (entry.count !== 1 ? "s" : "");
+		if (entry.count === 0) {
+			console.log(dim(`  0 ${label}`));
+		} else {
+			const breakdown = Object.entries(entry.statuses)
+				.map(([s, c]) => `${c} ${s}`)
+				.join(", ");
+			console.log(`  ${entry.count} ${label} (${breakdown})`);
+		}
 	}
-	if (danglers.length > 0) {
-		console.log(red(`  🔗 ${danglers.length} dangling reference(s)`));
+
+	console.log(`  ${result.relationships} relationships`);
+	console.log("");
+
+	// Context breakdown
+	if (result.contexts.length > 0) {
+		console.log(bold("Contexts:"));
+		for (const ctx of result.contexts) {
+			const breakdown = Object.entries(ctx.types)
+				.map(([t, c]) => `${c} ${t}${c !== 1 ? "s" : ""}`)
+				.join(", ");
+			console.log(`  ${ctx.name}: ${ctx.count} entities (${breakdown})`);
+		}
+		console.log("");
 	}
-	if (orphans.length > 0) {
-		console.log(yellow(`  ⊘ ${orphans.length} orphan decision(s)`));
+
+	// Health indicators
+	const h = result.health;
+	if (h.contradictions > 0) {
+		console.log(red(`  ⚡ ${h.contradictions} contradiction(s)`));
 	}
-	if (unvalidatedBacking.length > 0) {
+	if (h.danglingRefs > 0) {
+		console.log(red(`  🔗 ${h.danglingRefs} dangling reference(s)`));
+	}
+	if (h.orphans > 0) {
+		console.log(yellow(`  ⊘ ${h.orphans} orphan decision(s)`));
+	}
+	if (h.unvalidatedBacking > 0) {
 		console.log(
 			yellow(
-				`  ○ ${unvalidatedBacking.length} unvalidated assumption(s) backing decisions`,
+				`  ○ ${h.unvalidatedBacking} unvalidated assumption(s) backing decisions`,
 			),
 		);
 	}
-	if (
-		contradictions.length === 0 &&
-		danglers.length === 0 &&
-		orphans.length === 0
-	) {
+	if (h.contradictions === 0 && h.danglingRefs === 0 && h.orphans === 0) {
 		console.log(green("  ✓ No issues"));
 	}
-	if (unvalidated.length > 0 && unvalidatedBacking.length === 0) {
+	if (h.unvalidatedTotal > 0 && h.unvalidatedBacking === 0) {
 		console.log(
-			dim(`  ${unvalidated.length} unvalidated assumption(s) (no dependents)`),
+			dim(`  ${h.unvalidatedTotal} unvalidated assumption(s) (no dependents)`),
 		);
 	}
 }

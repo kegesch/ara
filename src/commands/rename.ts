@@ -3,6 +3,7 @@ import { existsSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { colorId, dim, green, yellow } from "../display/format.js";
 import {
+	isAradProject,
 	readAllEntities,
 	requireAradProject,
 	updateEntity,
@@ -11,41 +12,50 @@ import {
 import type { Entity, EntityType } from "../types.js";
 import { ENTITY_CONFIG, renameRefs } from "../entities/registry.js";
 import { getTypeFromId } from "../types.js";
+import {
+	EntityAlreadyExists,
+	EntityNotFound,
+	NotAnAradProject,
+	TypeMismatch,
+} from "../core/errors.js";
 
-export function renameCommand(
+// ─── Pure logic ───
+
+export interface RenameOptions {
+	title?: string;
+}
+
+export interface RenameResult {
+	oldId: string;
+	newId: string;
+	entity: Entity;
+	updatedRefs: number;
+}
+
+/**
+ * Rename an entity, updating all references across the project.
+ */
+export function performRename(
+	dir: string,
 	id: string,
 	newId: string,
-	options?: { title?: string },
-): void {
-	requireAradProject();
+	options?: RenameOptions,
+): RenameResult {
+	if (!isAradProject(dir)) throw new NotAnAradProject();
 
-	const entities = readAllEntities();
+	const entities = readAllEntities(dir);
 	const entity = entities.find((e) => e.id === id);
-	if (!entity) {
-		console.error(`Entity ${colorId(id)} not found.`);
-		process.exit(1);
-	}
+	if (!entity) throw new EntityNotFound(id);
 
-	// Validate new ID
-	try {
-		const newType = getTypeFromId(newId);
-		if (newType !== entity.type) {
-			console.error(
-				yellow(
-					`Cannot rename ${entity.type} ${id} to ${newId}: type mismatch (would become ${newType}).`,
-				),
-			);
-			process.exit(1);
-		}
-	} catch (e) {
-		console.error(`Invalid new ID "${newId}": ${(e as Error).message}`);
-		process.exit(1);
+	// Validate new ID type matches
+	const newType = getTypeFromId(newId);
+	if (newType !== entity.type) {
+		throw new TypeMismatch(id, entity.type, newId, newType);
 	}
 
 	// Check new ID doesn't already exist
 	if (entities.some((e) => e.id === newId)) {
-		console.error(yellow(`Entity ${colorId(newId)} already exists.`));
-		process.exit(1);
+		throw new EntityAlreadyExists(newId);
 	}
 
 	const oldId = entity.id;
@@ -59,32 +69,26 @@ export function renameCommand(
 	entity.id = newId;
 
 	// Remove old file, write new one
-	removeOldFile(oldId, entity.type);
-	const relPath = writeEntity(process.cwd(), entity);
+	removeOldFile(dir, oldId, entity.type);
+	writeEntity(dir, entity);
 
-	// Update references in all other entities using descriptor-driven renameRefs
+	// Update references in all other entities
 	let updatedRefs = 0;
 	for (const other of entities) {
-		if (other.id === newId) continue; // skip the renamed entity itself
+		if (other.id === newId) continue;
 		const changed = renameRefs(other, oldId, newId);
 		if (changed) {
-			updateEntity(process.cwd(), other);
+			updateEntity(dir, other);
 			updatedRefs++;
 		}
 	}
 
-	console.log(green(`✓ Renamed ${colorId(oldId)} → ${colorId(newId)}`));
-	if (options?.title) {
-		console.log(dim(`  Title: "${options.title}"`));
-	}
-	if (updatedRefs > 0) {
-		console.log(dim(`  Updated ${updatedRefs} reference(s) in other entities`));
-	}
+	return { oldId, newId, entity, updatedRefs };
 }
 
-function removeOldFile(oldId: string, type: EntityType): void {
+function removeOldFile(dir: string, oldId: string, type: EntityType): void {
 	const config = ENTITY_CONFIG[type];
-	const aradPath = join(process.cwd(), ".arad");
+	const aradPath = join(dir, ".arad");
 	const folder = join(aradPath, config.folder);
 	if (!existsSync(folder)) return;
 
@@ -93,5 +97,49 @@ function removeOldFile(oldId: string, type: EntityType): void {
 	);
 	for (const file of files) {
 		unlinkSync(join(folder, file));
+	}
+}
+
+// ─── CLI entry point ───
+
+export function renameCommand(
+	id: string,
+	newId: string,
+	options?: RenameOptions,
+): void {
+	requireAradProject();
+
+	try {
+		const result = performRename(process.cwd(), id, newId, options);
+
+		console.log(
+			green(`✓ Renamed ${colorId(result.oldId)} → ${colorId(result.newId)}`),
+		);
+		if (options?.title) {
+			console.log(dim(`  Title: "${options.title}"`));
+		}
+		if (result.updatedRefs > 0) {
+			console.log(
+				dim(`  Updated ${result.updatedRefs} reference(s) in other entities`),
+			);
+		}
+	} catch (e) {
+		if (e instanceof EntityNotFound) {
+			console.error(`Entity ${colorId(id)} not found.`);
+			process.exit(1);
+		}
+		if (e instanceof TypeMismatch) {
+			console.error(yellow(e.message));
+			process.exit(1);
+		}
+		if (e instanceof EntityAlreadyExists) {
+			console.error(yellow(`Entity ${colorId(newId)} already exists.`));
+			process.exit(1);
+		}
+		if (e instanceof Error && e.message.startsWith("Invalid new ID")) {
+			console.error(e.message);
+			process.exit(1);
+		}
+		throw e;
 	}
 }
