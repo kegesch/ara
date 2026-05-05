@@ -6,6 +6,8 @@ import {
 	buildGraph,
 	findContradictions,
 	findDanglingRefs,
+} from "../graph/graph.js";
+import {
 	findOrphanRequirements,
 	findOrphans,
 	findPossibleContradictions,
