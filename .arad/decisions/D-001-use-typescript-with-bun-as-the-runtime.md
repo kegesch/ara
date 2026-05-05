@@ -4,7 +4,7 @@ title: "Use TypeScript with Bun as the runtime"
 status: accepted
 date: 2026-05-01
 tags: [runtime, language]
-driven_by: [A-001]
+driven_by: [A-001, R-016]
 ---
 
 # Decision: Use TypeScript with Bun as the runtime

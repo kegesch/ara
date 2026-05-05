@@ -1,7 +1,7 @@
 ---
 id: A-012
 title: "ADR markdown files follow a standard format with # title and ## Status sections"
-status: unvalidated
+status: validated
 date: 2026-05-01
 tags: [import, migration]
 ---

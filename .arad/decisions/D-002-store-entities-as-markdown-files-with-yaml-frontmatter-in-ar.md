@@ -4,7 +4,7 @@ title: "Store entities as Markdown files with YAML frontmatter in .arad/ directo
 status: accepted
 date: 2026-05-01
 tags: [storage, format]
-driven_by: [R-002, A-003, R-015, R-001]
+driven_by: [R-002, A-003, R-015, R-001, R-018]
 ---
 
 # Decision: Store entities as Markdown files with YAML frontmatter in .arad/ directory

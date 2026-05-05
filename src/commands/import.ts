@@ -4,7 +4,7 @@ import { join, basename } from 'node:path';
 import { requireAradProject, getNextId, writeEntity, withLock } from '../io/files.js';
 import { colorId, green, yellow, dim } from '../display/format.js';
 
-interface ImportedEntity {
+export interface ImportedEntity {
   title: string;
   status: string;
   body: string;
@@ -17,7 +17,7 @@ interface ImportedEntity {
  * - Title as first # heading
  * - Sections: Status, Context, Decision, Consequences
  */
-function parseAdr(content: string, fileName: string): ImportedEntity {
+export function parseAdr(content: string, fileName: string): ImportedEntity {
   const lines = content.split('\n');
 
   // Extract title from first # heading
@@ -40,7 +40,7 @@ function parseAdr(content: string, fileName: string): ImportedEntity {
         const normalized = line.toLowerCase();
         if (normalized.includes('proposed') || normalized.includes('pending')) status = 'proposed';
         else if (normalized.includes('deprecated')) status = 'deprecated';
-        else if (normalized.includes('supersed')) status = 'superseded';
+        else if (normalized.includes('superseded') || normalized.includes('superceded')) status = 'superseded';
         else if (normalized.includes('reject')) status = 'rejected';
         break; // take the first non-empty line after ## Status
       }
