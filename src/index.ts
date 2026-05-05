@@ -151,11 +151,11 @@ program
 		"--to <type>",
 		"For ideas: promote to requirement or decision (default: requirement)",
 	)
-	.action((id: string, opts: { to?: string }) => {
+	.action(async (id: string, opts: { to?: string }) => {
 		if (opts.to) {
 			process.env.__ARAD_PROMOTE_TO = opts.to;
 		}
-		promoteCommand(id);
+		await promoteCommand(id);
 	});
 
 program
@@ -228,8 +228,8 @@ program
 	.argument("<path>", "Directory or file to import from")
 	.option("--type <type>", "Import format: adr", "adr")
 	.description("Import existing ADR markdown files as decisions")
-	.action((path: string, opts: { type?: string }) => {
-		importCommand(path, opts);
+	.action(async (path: string, opts: { type?: string }) => {
+		await importCommand(path, opts);
 	});
 
 program

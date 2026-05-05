@@ -8,6 +8,7 @@ import {
 	isAradProject,
 	readAllEntities,
 	requireAradProject,
+	withLock,
 	writeEntity,
 } from "../io/files.js";
 import type { Entity, EntityType } from "../types.js";
@@ -343,21 +344,23 @@ export async function addCommand(
 		}
 	}
 
-	// Call pure function
-	const result = createEntity(process.cwd(), {
-		type,
-		title,
-		status: status || undefined,
-		tags,
-		context: context || undefined,
-		drivenBy,
-		derivedFrom,
-		conflictsWith,
-		enables,
-		supersedes,
-		inspiredBy,
-		body,
-	});
+	// Call pure function inside a lock to prevent parallel ID collisions
+	const result = await withLock(process.cwd(), () =>
+		createEntity(process.cwd(), {
+			type,
+			title,
+			status: status || undefined,
+			tags,
+			context: context || undefined,
+			drivenBy,
+			derivedFrom,
+			conflictsWith,
+			enables,
+			supersedes,
+			inspiredBy,
+			body,
+		}),
+	);
 
 	console.log(`\nCreated ${result.entity.id}: ${title.trim()}`);
 	console.log(`  .arad/${result.path}`);

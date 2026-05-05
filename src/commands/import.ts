@@ -1,7 +1,7 @@
 // arad import <path> — import existing ADR markdown files
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
-import { requireAradProject, getNextId, writeEntity } from '../io/files.js';
+import { requireAradProject, getNextId, writeEntity, withLock } from '../io/files.js';
 import { colorId, green, yellow, dim } from '../display/format.js';
 
 interface ImportedEntity {
@@ -53,7 +53,7 @@ function parseAdr(content: string, fileName: string): ImportedEntity {
   return { title, status, body, sourceFile: fileName };
 }
 
-export function importCommand(sourcePath: string, options?: { type?: string }): void {
+export async function importCommand(sourcePath: string, options?: { type?: string }): Promise<void> {
   requireAradProject();
 
   const type = options?.type ?? 'adr';
@@ -90,42 +90,44 @@ export function importCommand(sourcePath: string, options?: { type?: string }): 
   let imported = 0;
   let skipped = 0;
 
-  for (const filePath of files) {
-    const fileName = basename(filePath);
-    const content = readFileSync(filePath, 'utf-8');
+  await withLock(process.cwd(), () => {
+    for (const filePath of files) {
+      const fileName = basename(filePath);
+      const content = readFileSync(filePath, 'utf-8');
 
-    let parsed: ImportedEntity;
-    switch (type) {
-      case 'adr':
-        parsed = parseAdr(content, fileName);
-        break;
-      default:
-        console.error(yellow(`Unknown import type: ${type}. Supported: adr`));
-        process.exit(1);
+      let parsed: ImportedEntity;
+      switch (type) {
+        case 'adr':
+          parsed = parseAdr(content, fileName);
+          break;
+        default:
+          console.error(yellow(`Unknown import type: ${type}. Supported: adr`));
+          process.exit(1);
+      }
+
+      // Get next decision ID
+      const id = getNextId(process.cwd(), 'decision');
+
+      const entity = {
+        type: 'decision' as const,
+        id,
+        title: parsed.title,
+        status: parsed.status as any,
+        date: new Date().toISOString().split('T')[0],
+        tags: ['imported'],
+        driven_by: [] as string[],
+        enables: [] as string[],
+        affects: [] as string[],
+        body: parsed.body,
+        filePath: '',
+      };
+
+      const relPath = writeEntity(process.cwd(), entity);
+      console.log(green(`✓ Imported ${colorId(id)}: ${parsed.title}`));
+      console.log(dim(`  from ${fileName} → .arad/${relPath}`));
+      imported++;
     }
-
-    // Get next decision ID
-    const id = getNextId(process.cwd(), 'decision');
-
-    const entity = {
-      type: 'decision' as const,
-      id,
-      title: parsed.title,
-      status: parsed.status as any,
-      date: new Date().toISOString().split('T')[0],
-      tags: ['imported'],
-      driven_by: [] as string[],
-      enables: [] as string[],
-      affects: [] as string[],
-      body: parsed.body,
-      filePath: '',
-    };
-
-    const relPath = writeEntity(process.cwd(), entity);
-    console.log(green(`✓ Imported ${colorId(id)}: ${parsed.title}`));
-    console.log(dim(`  from ${fileName} → .arad/${relPath}`));
-    imported++;
-  }
+  });
 
   console.log('');
   console.log(dim(`Imported ${imported} decision(s), skipped ${skipped}.`));

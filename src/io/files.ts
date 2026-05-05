@@ -4,6 +4,7 @@ import {
 	existsSync,
 	mkdirSync,
 	readdirSync,
+	rmSync,
 	readFileSync,
 	unlinkSync,
 	writeFileSync,
@@ -18,6 +19,47 @@ import {
 import { parseEntity, serializeEntity } from "./parser";
 
 export const ARAD_DIR = ".arad";
+
+// ─── File-based locking ───
+//
+// Uses mkdir (atomic on both Windows and POSIX) to acquire a lock.
+// Prevents parallel `arad add` commands from computing the same next ID.
+
+const LOCK_DIR = ".lock";
+const LOCK_RETRY_MS = 50;
+const LOCK_TIMEOUT_MS = 5000;
+
+/** Acquire a file-based lock, run `fn`, then release. Retries until timeout. */
+export async function withLock<T>(dir: string, fn: () => T | Promise<T>): Promise<T> {
+	const lockPath = join(dir, ARAD_DIR, LOCK_DIR);
+	const deadline = Date.now() + LOCK_TIMEOUT_MS;
+
+	while (true) {
+		try {
+			mkdirSync(lockPath, { recursive: false });
+			break; // acquired
+		} catch (e: any) {
+			if (e?.code !== "EEXIST") throw e;
+			if (Date.now() >= deadline) {
+				throw new Error(
+					`Timed out acquiring lock after ${LOCK_TIMEOUT_MS}ms. ` +
+					`If stale, delete ${lockPath} manually.`,
+				);
+			}
+			await new Promise((r) => setTimeout(r, LOCK_RETRY_MS));
+		}
+	}
+
+	try {
+		return await fn();
+	} finally {
+		try {
+			rmSync(lockPath, { recursive: true, force: true });
+		} catch {
+			// best-effort; lock will be stale but recoverable
+		}
+	}
+}
 
 /** Check if current directory has been initialized */
 export function isAradProject(dir: string = process.cwd()): boolean {

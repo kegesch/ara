@@ -15,6 +15,7 @@ import {
 	readAllEntities,
 	requireAradProject,
 	updateEntity,
+	withLock,
 	writeEntity,
 } from "../io/files.js";
 import type { Assumption, Entity, Idea } from "../types.js";
@@ -252,7 +253,7 @@ export function invalidateCommand(id: string): void {
 	}
 }
 
-export function promoteCommand(id: string): void {
+export async function promoteCommand(id: string): Promise<void> {
 	requireAradProject();
 
 	const targetType =
@@ -260,7 +261,9 @@ export function promoteCommand(id: string): void {
 		"requirement";
 
 	try {
-		const result = performPromote(process.cwd(), id, targetType);
+		const result = await withLock(process.cwd(), () =>
+			performPromote(process.cwd(), id, targetType),
+		);
 
 		console.log(
 			green(
