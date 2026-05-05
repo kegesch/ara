@@ -131,3 +131,59 @@ describe("concurrent getNextId", () => {
 		expect(ids[0]).toBe("R-001");
 	});
 });
+
+describe("supersedes auto-marking", () => {
+	test("createEntity with supersedes auto-marks old decision as superseded", () => {
+		// Create the original decision
+		const original = createEntity(TMP, {
+			type: "decision",
+			title: "Use SQLite",
+			status: "accepted",
+		});
+		expect(original.entity.id).toBe("D-001");
+		expect(original.entity.status).toBe("accepted");
+
+		// Create a new decision that supersedes the original
+		const newer = createEntity(TMP, {
+			type: "decision",
+			title: "Use PostgreSQL",
+			status: "accepted",
+			supersedes: "D-001",
+		});
+		expect(newer.entity.id).toBe("D-002");
+
+		// Read the original back from disk — it should now be superseded
+		const { readEntityById } = require("../src/io/files");
+		const oldFromDisk = readEntityById(TMP, "D-001");
+		expect(oldFromDisk).not.toBeNull();
+		expect(oldFromDisk.status).toBe("superseded");
+	});
+
+	test("createEntity does not change status if old decision already superseded", () => {
+		const original = createEntity(TMP, {
+			type: "decision",
+			title: "Use SQLite",
+			status: "superseded",
+		});
+
+		const newer = createEntity(TMP, {
+			type: "decision",
+			title: "Use PostgreSQL",
+			status: "accepted",
+			supersedes: "D-001",
+		});
+
+		const { readEntityById } = require("../src/io/files");
+		const oldFromDisk = readEntityById(TMP, "D-001");
+		expect(oldFromDisk.status).toBe("superseded");
+	});
+
+	test("createEntity with non-existent supersedes ID does not crash", () => {
+		const result = createEntity(TMP, {
+			type: "decision",
+			title: "New decision",
+			supersedes: "D-999",
+		});
+		expect(result.entity.id).toBe("D-001");
+	});
+});

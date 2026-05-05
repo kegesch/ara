@@ -7,7 +7,9 @@ import {
 	getNextId,
 	isAradProject,
 	readAllEntities,
+	readEntityById,
 	requireAradProject,
+	updateEntity,
 	withLock,
 	writeEntity,
 } from "../io/files.js";
@@ -152,6 +154,15 @@ export function createEntity(
 	}
 
 	const relPath = writeEntity(dir, entity);
+
+	// If this decision supersedes another, auto-mark the old one as superseded
+	if (input.type === "decision" && input.supersedes?.trim()) {
+		const oldEntity = readEntityById(dir, input.supersedes.trim());
+		if (oldEntity && oldEntity.type === "decision" && oldEntity.status !== "superseded") {
+			oldEntity.status = "superseded";
+			updateEntity(dir, oldEntity);
+		}
+	}
 
 	return { entity, path: relPath };
 }
