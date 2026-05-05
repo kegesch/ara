@@ -4,7 +4,7 @@ title: "Use file-based locking via mkdir for ID allocation"
 status: accepted
 date: 2026-05-05
 tags: [concurrency, locking]
-driven_by: [A-011]
+driven_by: [R-031]
 ---
 
 # Decision: Use file-based locking via mkdir for ID allocation
