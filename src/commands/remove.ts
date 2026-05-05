@@ -59,19 +59,18 @@ export function performRemove(
 
 	const cleanedRefs: string[] = [];
 
-	if (options?.force || options?.clean) {
-		if (options?.clean) {
-			for (const other of entities) {
-				if (other.id === id) continue;
-				const changed = cleanRefs(other, id);
-				if (changed) {
-					updateEntity(dir, other);
-					cleanedRefs.push(other.id);
-				}
+	if (options?.clean) {
+		for (const other of entities) {
+			if (other.id === id) continue;
+			const changed = cleanRefs(other, id);
+			if (changed) {
+				updateEntity(dir, other);
+				cleanedRefs.push(other.id);
 			}
 		}
-		removeFile(dir, entity);
 	}
+
+	removeFile(dir, entity);
 
 	return { removed: entity, cleanedRefs };
 }
