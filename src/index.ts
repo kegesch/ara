@@ -23,7 +23,6 @@ import {
 	promoteCommand,
 	validateCommand,
 } from "./commands/validate.js";
-import { startMcpServer } from "./mcp/server.js";
 
 const program = new Command();
 
@@ -191,13 +190,6 @@ program
 	.description("Search entities by text or structured modifiers")
 	.action((terms: string[]) => {
 		queryCommand(terms.join(" "));
-	});
-
-program
-	.command("mcp")
-	.description("Start MCP server (stdio transport) for AI agent integration")
-	.action(async () => {
-		await startMcpServer();
 	});
 
 program
