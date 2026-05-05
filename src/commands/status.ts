@@ -6,9 +6,11 @@ import {
 	buildGraph,
 	findContradictions,
 	findDanglingRefs,
+} from "../graph/graph.js";
+import {
 	findOrphans,
 	findUnvalidatedAssumptions,
-} from "../graph/graph.js";
+} from "../graph/analysis.js";
 import { ARAD_DIR, isAradProject, readAllEntities, requireAradProject } from "../io/files.js";
 import type { Entity, EntityType } from "../types.js";
 import { ENTITY_TYPE_ORDER, allTypes } from "../entities/registry.js";

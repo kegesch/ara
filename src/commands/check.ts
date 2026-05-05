@@ -12,7 +12,7 @@ import {
 	findPossibleDuplicates,
 	findStatusAnomalies,
 	findUnvalidatedAssumptions,
-} from "../graph/graph.js";
+} from "../graph/analysis.js";
 import { readAllEntities, requireAradProject } from "../io/files.js";
 
 export interface CheckOptions {

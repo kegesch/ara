@@ -6,8 +6,10 @@
     "deep-modules"
   ],
   "status": "open",
-  "created_at": "2026-05-01T19:46:20.404Z"
+  "created_at": "2026-05-01T19:46:20.404Z",
+  "assigned_to_session": "019df901-ca84-709d-814f-f68d788a60b9"
 }
+
 
 ## Problem
 `graph/graph.ts` is the best module in the codebase (clean interface: `buildGraph`, `getDependents`, `getDependencies`, `impactAnalysis`, `traceUp`) but it leaks entity-type knowledge into the graph layer via a `switch (entity.type)` in `buildGraph` to extract edges. This couples the graph engine to entity types — adding `idea` required modifying a module that should be type-agnostic.

@@ -5,12 +5,14 @@ import {
 	buildGraph,
 	findContradictions,
 	findDanglingRefs,
-	findOrphans,
 	getDependencies,
 	getDependents,
 	impactAnalysis,
 	traceUp,
 } from "../src/graph/graph";
+import {
+	findOrphans,
+} from "../src/graph/analysis";
 import {
 	parseEntity,
 	serializeEntity,
@@ -430,7 +432,7 @@ import {
 	findPossibleContradictions,
 	findPossibleDuplicates,
 	findStatusAnomalies,
-} from "../src/graph/graph";
+} from "../src/graph/analysis";
 
 describe("heuristic analysis", () => {
 	test("findPossibleContradictions detects opposing terms", () => {
