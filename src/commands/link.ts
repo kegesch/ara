@@ -6,6 +6,7 @@ import {
 	readEntityById,
 	requireAradProject,
 	updateEntity,
+	withLock,
 } from "../io/files.js";
 import type {
 	Decision,
@@ -229,15 +230,17 @@ export function performUnlink(
 
 // ─── CLI entry points ───
 
-export function linkCommand(
+export async function linkCommand(
 	fromId: string,
 	toId: string,
 	options?: LinkOptions,
-): void {
+): Promise<void> {
 	requireAradProject();
 
 	try {
-		const result = performLink(process.cwd(), fromId, toId, options);
+		const result = await withLock(process.cwd(), () =>
+			performLink(process.cwd(), fromId, toId, options),
+		);
 
 		console.log(
 			green(
@@ -252,15 +255,17 @@ export function linkCommand(
 	}
 }
 
-export function unlinkCommand(
+export async function unlinkCommand(
 	fromId: string,
 	toId: string,
 	options?: UnlinkOptions,
-): void {
+): Promise<void> {
 	requireAradProject();
 
 	try {
-		const result = performUnlink(process.cwd(), fromId, toId, options);
+		const result = await withLock(process.cwd(), () =>
+			performUnlink(process.cwd(), fromId, toId, options),
+		);
 
 		for (const edgeType of result.removedEdgeTypes) {
 			console.log(

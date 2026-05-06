@@ -80,6 +80,50 @@ export function formatEntityList(entities: Entity[]): string {
 	return entities.map(formatEntityBrief).join("\n");
 }
 
+/** Pattern matching template placeholder text like "(What is the issue...)" */
+const PLACEHOLDER_RE = /^\([A-Z][^)]*\)$/;
+
+/**
+ * Strip body sections that contain only template placeholder text.
+ * A section is a markdown heading followed by content lines.
+ * Sections where every non-empty content line matches the placeholder pattern
+ * are removed entirely.
+ */
+function stripPlaceholderSections(body: string): string {
+	const lines = body.split("\n");
+	const result: string[] = [];
+	let currentSection: string[] = [];
+	let sectionHasContent = false;
+
+	const flush = () => {
+		if (sectionHasContent) {
+			result.push(...currentSection);
+		}
+		currentSection = [];
+		sectionHasContent = false;
+	};
+
+	for (const line of lines) {
+		if (/^##\s/.test(line)) {
+			flush();
+			currentSection.push(line);
+		} else if (line.trim() === "") {
+			currentSection.push(line);
+		} else if (PLACEHOLDER_RE.test(line.trim())) {
+			// placeholder line — don't count as real content
+			currentSection.push(line);
+		} else {
+			currentSection.push(line);
+			sectionHasContent = true;
+		}
+	}
+	flush();
+
+	// Strip leading/trailing blank lines
+	let output = result.join("\n").replace(/^\n+/, "").replace(/\n+$/, "");
+	return output;
+}
+
 export function formatEntityDetail(entity: Entity): string {
 	const tc = typeColor(entity.type);
 	const desc = getDescriptor(entity.type);
@@ -109,9 +153,12 @@ export function formatEntityDetail(entity: Entity): string {
 	}
 
 	if (entity.body) {
-		lines.push("");
-		lines.push(dim("─".repeat(50)));
-		lines.push(entity.body);
+		const stripped = stripPlaceholderSections(entity.body);
+		if (stripped.length > 0) {
+			lines.push("");
+			lines.push(dim("─".repeat(50)));
+			lines.push(stripped);
+		}
 	}
 
 	return lines.join("\n");

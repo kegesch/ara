@@ -36,6 +36,7 @@ export interface CheckIssue {
 	message: string;
 	ids: string[];
 	detail?: string;
+	suggestion?: string;
 }
 
 export interface CheckWarning {
@@ -44,6 +45,7 @@ export interface CheckWarning {
 	message: string;
 	ids: string[];
 	detail?: string;
+	suggestion?: string;
 }
 
 /**
@@ -77,6 +79,7 @@ export function runCheck(contextFilter?: string): CheckResult {
 			severity: "error",
 			message: `Decision ${o.id} "${o.title}" has no backing requirement or assumption`,
 			ids: [o.id],
+			suggestion: `Link to a requirement: arad link ${o.id} <R-xxx>`,
 		});
 	}
 
@@ -87,6 +90,7 @@ export function runCheck(contextFilter?: string): CheckResult {
 			message: `Requirements ${a.id} and ${b.id} explicitly conflict`,
 			ids: [a.id, b.id],
 			detail: `"${a.title}" ↔ "${b.title}"`,
+			suggestion: `Add a reconciling decision: arad add decision 'Resolve ${a.id}/${b.id} conflict'`,
 		});
 	}
 
@@ -96,15 +100,25 @@ export function runCheck(contextFilter?: string): CheckResult {
 			severity: "error",
 			message: `${d.from} references non-existent ${d.ref} (${d.context})`,
 			ids: [d.from, d.ref],
+			suggestion: `Remove broken ref: arad unlink ${d.from} ${d.ref}`,
 		});
 	}
 
 	for (const anomaly of findStatusAnomalies(graph)) {
+		const id = anomaly.entity.id;
+		const refIds = anomaly.refs.map((r) => r.id);
+		let suggestion: string | undefined;
+		if (anomaly.issue.includes("invalidated") && id.startsWith("D-")) {
+			suggestion = `Re-evaluate this decision: arad edit ${id}`;
+		} else if (anomaly.issue.includes("invalidated") && refIds.length > 0) {
+			suggestion = `Create opposing requirement: arad add requirement '...' then arad link ${id} <new-id>`;
+		}
 		result.issues.push({
 			kind: "status_anomaly",
 			severity: "error",
 			message: anomaly.issue,
-			ids: [anomaly.entity.id, ...anomaly.refs.map((r) => r.id)],
+			ids: [id, ...refIds],
+			suggestion,
 		});
 	}
 
@@ -121,6 +135,9 @@ export function runCheck(contextFilter?: string): CheckResult {
 			message: `Assumption ${a.id} "${a.title}" is unvalidated`,
 			ids: [a.id],
 			detail: depCount > 0 ? `${depCount} dependent decision(s)` : undefined,
+			suggestion: depCount > 0
+				? `High priority — validate or invalidate: arad validate ${a.id}`
+				: `Validate or invalidate: arad validate ${a.id}`,
 		});
 	}
 
@@ -130,6 +147,7 @@ export function runCheck(contextFilter?: string): CheckResult {
 			severity: "warning",
 			message: `Requirement ${r.id} "${r.title}" is accepted but has no decisions addressing it`,
 			ids: [r.id],
+			suggestion: `Add a decision: arad add decision '...' then arad link <new-id> ${r.id}`,
 		});
 	}
 
@@ -140,6 +158,7 @@ export function runCheck(contextFilter?: string): CheckResult {
 			message: `"${pc.a.title}" ↔ "${pc.b.title}"`,
 			ids: [pc.a.id, pc.b.id],
 			detail: pc.reason,
+			suggestion: `Confirm with: arad link ${pc.a.id} ${pc.b.id} --type conflicts_with`,
 		});
 	}
 
@@ -150,6 +169,7 @@ export function runCheck(contextFilter?: string): CheckResult {
 			severity: "warning",
 			message: `"${dup.a.title}" ≈ "${dup.b.title}" (${pct}% similar)`,
 			ids: [dup.a.id, dup.b.id],
+			suggestion: `Review and merge, or supersede: arad link ${dup.a.id} ${dup.b.id} --type supersedes`,
 		});
 	}
 
@@ -169,12 +189,14 @@ function displayText(result: CheckResult, strict: boolean): void {
 	for (const issue of result.issues) {
 		console.log(red(`  ✗ [${issue.kind}] ${issue.message}`));
 		if (issue.detail) console.log(dim(`    ${issue.detail}`));
+		if (issue.suggestion) console.log(dim(`    💡 ${issue.suggestion}`));
 	}
 	if (result.issues.length > 0) console.log("");
 
 	for (const w of result.warnings) {
 		console.log(yellow(`  ⚠ [${w.kind}] ${w.message}`));
 		if (w.detail) console.log(dim(`    ${w.detail}`));
+		if (w.suggestion) console.log(dim(`    💡 ${w.suggestion}`));
 	}
 	if (result.warnings.length > 0) console.log("");
 

@@ -138,8 +138,16 @@ program
 program
 	.command("invalidate")
 	.argument("<id>", "Assumption ID to invalidate")
+	.option(
+		"--derive-requirement <title>",
+		"Create an opposing requirement and re-link dependent decisions",
+	)
 	.description("Mark an assumption as invalidated (shows impact)")
-	.action(invalidateCommand);
+	.action(
+		async (id: string, opts: { deriveRequirement?: string }) => {
+			await invalidateCommand(id, opts);
+		},
+	);
 
 program
 	.command("promote")

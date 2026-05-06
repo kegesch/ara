@@ -49,15 +49,25 @@ export function performValidate(dir: string, id: string): ValidateResult {
 
 // ─── Pure logic: invalidate ───
 
+export interface InvalidateOptions {
+	deriveRequirement?: string;
+}
+
 export interface InvalidateResult {
 	entity: Assumption;
 	affected: {
 		direct: Entity[];
 		transitive: Entity[];
 	};
+	derivedRequirement?: Entity;
+	relinkedDecisions?: number;
 }
 
-export function performInvalidate(dir: string, id: string): InvalidateResult {
+export function performInvalidate(
+	dir: string,
+	id: string,
+	options?: InvalidateOptions,
+): InvalidateResult {
 	if (!isAradProject(dir)) throw new NotAnAradProject();
 
 	const entities = readAllEntities(dir);
@@ -72,7 +82,56 @@ export function performInvalidate(dir: string, id: string): InvalidateResult {
 
 	const { direct, transitive } = impactAnalysis(graph, id);
 
-	return { entity, affected: { direct, transitive } };
+	const result: InvalidateResult = {
+		entity,
+		affected: { direct, transitive },
+	};
+
+	// If --derive-requirement is specified, create a new requirement and
+	// re-link all decisions that were driven_by this assumption
+	if (options?.deriveRequirement) {
+		const newId = getNextId(dir, "requirement");
+		const requirement = {
+			type: "requirement" as const,
+			id: newId,
+			title: options.deriveRequirement,
+			status: "accepted" as const,
+			date: new Date().toISOString().split("T")[0],
+			tags: [...entity.tags],
+			derived_from: [] as string[],
+			conflicts_with: [] as string[],
+			requested_by: [] as string[],
+			body: `Derived from invalidated ${entity.id}: "${entity.title}"`,
+			filePath: "",
+		};
+		writeEntity(dir, requirement);
+		result.derivedRequirement = requirement;
+
+		// Re-link: find decisions driven by this assumption, add new requirement, remove old assumption
+		const dependents = getDependents(graph, entity.id);
+		let relinkedCount = 0;
+		for (const dep of dependents) {
+			if (
+				dep.type === "decision" &&
+				dep.driven_by
+			) {
+				// Add new requirement to driven_by
+				if (!dep.driven_by.includes(newId)) {
+					dep.driven_by.push(newId);
+				}
+				// Remove old assumption from driven_by
+				const idx = dep.driven_by.indexOf(entity.id);
+				if (idx !== -1) {
+					dep.driven_by.splice(idx, 1);
+				}
+				updateEntity(dir, dep);
+				relinkedCount++;
+			}
+		}
+		result.relinkedDecisions = relinkedCount;
+	}
+
+	return result;
 }
 
 // ─── Pure logic: promote ───
@@ -220,19 +279,39 @@ export function validateCommand(id: string): void {
 	}
 }
 
-export function invalidateCommand(id: string): void {
+export async function invalidateCommand(
+	id: string,
+	options?: { deriveRequirement?: string },
+): Promise<void> {
 	requireAradProject();
 	try {
-		const result = performInvalidate(process.cwd(), id);
+		const result = await withLock(process.cwd(), () =>
+			performInvalidate(process.cwd(), id, options),
+		);
 		console.log(
 			red(
 				`✗ Invalidated ${colorId(result.entity.id)}: ${result.entity.title}`,
 			),
 		);
 
+		if (result.derivedRequirement) {
+			console.log(
+				green(
+					`✓ Created requirement ${colorId(result.derivedRequirement.id)}: "${result.derivedRequirement.title}"`,
+				),
+			);
+			if (result.relinkedDecisions && result.relinkedDecisions > 0) {
+				console.log(
+					dim(
+						`  Re-linked ${result.relinkedDecisions} decision(s) from ${colorId(result.entity.id)} → ${colorId(result.derivedRequirement.id)}`,
+					),
+				);
+			}
+		}
+
 		if (result.affected.direct.length > 0) {
 			console.log("");
-			console.log(yellow("Affected decisions:"));
+			console.log(yellow("Affected entities:"));
 			for (const dep of result.affected.direct) {
 				console.log(`  ${formatEntityBrief(dep)}`);
 			}
@@ -241,12 +320,14 @@ export function invalidateCommand(id: string): void {
 					console.log(`  ${formatEntityBrief(dep)}`);
 				}
 			}
-			console.log("");
-			console.log(
-				yellow(
-					`⚠ ${result.affected.direct.length + result.affected.transitive.length} entities may need review`,
-				),
-			);
+			if (!result.derivedRequirement) {
+				console.log("");
+				console.log(
+					yellow(
+						`💡 Create an opposing requirement: arad invalidate ${id} --derive-requirement '...'`,
+					),
+				);
+			}
 		}
 	} catch (e) {
 		handleError(e);
