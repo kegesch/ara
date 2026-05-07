@@ -1,4 +1,4 @@
-// Frontmatter parsing for ARAD entity files
+// Frontmatter parsing for ARC entity files
 
 import { parse as yamlParse } from "yaml";
 import type { Entity } from "../types";

@@ -1,10 +1,10 @@
-// arad impact <id>
-import { readAllEntities, requireAradProject } from '../io/files.js';
+// arc impact <id>
+import { readAllEntities, requireArcProject } from '../io/files.js';
 import { buildGraph, impactAnalysis } from '../graph/graph.js';
 import { formatEntityBrief, colorId, red, yellow, bold, dim } from '../display/format.js';
 
 export function impactCommand(id: string): void {
-  requireAradProject();
+  requireArcProject();
 
   const entities = readAllEntities();
   const graph = buildGraph(entities);

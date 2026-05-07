@@ -1,12 +1,12 @@
-// arad remove <id> — delete an entity with dangling ref cleanup
+// arc remove <id> — delete an entity with dangling ref cleanup
 import { existsSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { colorId, dim, red, yellow } from "../display/format.js";
 import { buildGraph, getDependents } from "../graph/graph.js";
 import {
-	isAradProject,
+	isArcProject,
 	readAllEntities,
-	requireAradProject,
+	requireArcProject,
 	updateEntity,
 } from "../io/files.js";
 import type { Entity, EntityType } from "../types.js";
@@ -14,7 +14,7 @@ import { cleanRefs, ENTITY_CONFIG } from "../entities/registry.js";
 import {
 	EntityNotFound,
 	HasDependents,
-	NotAnAradProject,
+	NotAnArcProject,
 } from "../core/errors.js";
 
 // ─── Pure logic ───
@@ -41,7 +41,7 @@ export function performRemove(
 	id: string,
 	options?: RemoveOptions,
 ): RemoveResult {
-	if (!isAradProject(dir)) throw new NotAnAradProject();
+	if (!isArcProject(dir)) throw new NotAnArcProject();
 
 	const entities = readAllEntities(dir);
 	const entity = entities.find((e) => e.id === id);
@@ -77,8 +77,8 @@ export function performRemove(
 
 function removeFile(dir: string, entity: Entity): void {
 	const config = ENTITY_CONFIG[entity.type];
-	const aradPath = join(dir, ".arad");
-	const folder = join(aradPath, config.folder);
+	const arcPath = join(dir, ".arc");
+	const folder = join(arcPath, config.folder);
 
 	if (!existsSync(folder)) return;
 
@@ -96,7 +96,7 @@ export function removeCommand(
 	id: string,
 	options?: RemoveOptions,
 ): void {
-	requireAradProject();
+	requireArcProject();
 
 	try {
 		const result = performRemove(process.cwd(), id, options);

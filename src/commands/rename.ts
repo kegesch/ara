@@ -1,11 +1,11 @@
-// arad rename <id> <new-id> [--title "New title"]
+// arc rename <id> <new-id> [--title "New title"]
 import { existsSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { colorId, dim, green, yellow } from "../display/format.js";
 import {
-	isAradProject,
+	isArcProject,
 	readAllEntities,
-	requireAradProject,
+	requireArcProject,
 	updateEntity,
 	writeEntity,
 } from "../io/files.js";
@@ -15,7 +15,7 @@ import { getTypeFromId } from "../types.js";
 import {
 	EntityAlreadyExists,
 	EntityNotFound,
-	NotAnAradProject,
+	NotAnArcProject,
 	TypeMismatch,
 } from "../core/errors.js";
 
@@ -41,7 +41,7 @@ export function performRename(
 	newId: string,
 	options?: RenameOptions,
 ): RenameResult {
-	if (!isAradProject(dir)) throw new NotAnAradProject();
+	if (!isArcProject(dir)) throw new NotAnArcProject();
 
 	const entities = readAllEntities(dir);
 	const entity = entities.find((e) => e.id === id);
@@ -88,8 +88,8 @@ export function performRename(
 
 function removeOldFile(dir: string, oldId: string, type: EntityType): void {
 	const config = ENTITY_CONFIG[type];
-	const aradPath = join(dir, ".arad");
-	const folder = join(aradPath, config.folder);
+	const arcPath = join(dir, ".arc");
+	const folder = join(arcPath, config.folder);
 	if (!existsSync(folder)) return;
 
 	const files = readdirSync(folder).filter(
@@ -107,7 +107,7 @@ export function renameCommand(
 	newId: string,
 	options?: RenameOptions,
 ): void {
-	requireAradProject();
+	requireArcProject();
 
 	try {
 		const result = performRename(process.cwd(), id, newId, options);

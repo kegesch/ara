@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// ARAD — Architecture, Requirements, Assumptions, Decisions
+// ARC — Architecture, Requirements, Assumptions, Decisions
 // CLI entry point
 
 import { Command } from "commander";
@@ -27,7 +27,7 @@ import {
 const program = new Command();
 
 program
-	.name("arad")
+	.name("arc")
 	.description(
 		"Architecture, Requirements, Assumptions, Decisions — traceability for humans and agents",
 	)
@@ -35,7 +35,7 @@ program
 
 program
 	.command("init")
-	.description("Initialize .arad/ in the current directory")
+	.description("Initialize .arc/ in the current directory")
 	.action(initCommand);
 
 program
@@ -161,7 +161,7 @@ program
 	)
 	.action(async (id: string, opts: { to?: string }) => {
 		if (opts.to) {
-			process.env.__ARAD_PROMOTE_TO = opts.to;
+			process.env.__ARC_PROMOTE_TO = opts.to;
 		}
 		await promoteCommand(id);
 	});
@@ -202,7 +202,7 @@ program
 
 program
 	.command("graph")
-	.description("Visualize the ARAD graph (Mermaid, DOT, or ASCII)")
+	.description("Visualize the ARC graph (Mermaid, DOT, or ASCII)")
 	.option("--format <format>", "Output format: mermaid, dot, ascii", "mermaid")
 	.action((opts: { format?: string }) => {
 		graphCommand(opts.format);
@@ -216,7 +216,7 @@ program
 		"Remove even if referenced by other entities (leaves dangling refs)",
 	)
 	.option("--clean", "Remove and clean up references from other entities")
-	.description("Remove an entity from the ARAD graph")
+	.description("Remove an entity from the ARC graph")
 	.action((id: string, opts: { force?: boolean; clean?: boolean }) => {
 		removeCommand(id, { force: opts.force || opts.clean, clean: opts.clean });
 	});

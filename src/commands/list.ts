@@ -1,7 +1,7 @@
-// arad list [type]
+// arc list [type]
 
 import { formatEntityList } from "../display/format.js";
-import { readAllEntities, requireAradProject } from "../io/files.js";
+import { readAllEntities, requireArcProject } from "../io/files.js";
 import type { Entity, EntityType } from "../types.js";
 import { ENTITY_TYPE_ORDER, allTypes } from "../entities/registry.js";
 
@@ -9,7 +9,7 @@ export function listCommand(
 	typeFilter?: string,
 	options?: { status?: string; tag?: string; context?: string },
 ): void {
-	requireAradProject();
+	requireArcProject();
 
 	let entities = readAllEntities();
 

@@ -59,7 +59,7 @@ export interface EntityDescriptor {
 	type: EntityType;
 	/** ID prefix (R, A, D, I, S, K, T) */
 	prefix: string;
-	/** Folder name inside .arad/ */
+	/** Folder name inside .arc/ */
 	folder: string;
 	/** All valid statuses for this entity type */
 	statuses: string[];

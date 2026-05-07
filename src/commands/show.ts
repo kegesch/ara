@@ -1,11 +1,11 @@
-// arad show <id>
-import { readAllEntities, requireAradProject } from '../io/files.js';
+// arc show <id>
+import { readAllEntities, requireArcProject } from '../io/files.js';
 import { buildGraph, getDependents, getDependencies } from '../graph/graph.js';
 import { formatEntityDetail, colorId, statusIcon, typeColor } from '../display/format.js';
 import type { Entity } from '../types.js';
 
 export function showCommand(id: string): void {
-  requireAradProject();
+  requireArcProject();
 
   const entities = readAllEntities();
   const entity = entities.find(e => e.id === id);

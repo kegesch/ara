@@ -22,13 +22,13 @@ jobs:
         include:
           - os: ubuntu-latest
             target: linux-x64
-            artifact: arad-linux-x64
+            artifact: arc-linux-x64
           - os: macos-latest
             target: darwin-arm64
-            artifact: arad-darwin-arm64
+            artifact: arc-darwin-arm64
           - os: windows-latest
             target: windows-x64
-            artifact: arad-windows-x64.exe
+            artifact: arc-windows-x64.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

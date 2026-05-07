@@ -1,19 +1,19 @@
-// arad query <text>
-import { readAllEntities, requireAradProject } from '../io/files.js';
+// arc query <text>
+import { readAllEntities, requireArcProject } from '../io/files.js';
 import { searchEntities, type SearchResult } from '../search/fuzzy.js';
 import { formatEntityBrief, dim, colorId } from '../display/format.js';
 
 export function queryCommand(query: string): void {
-  requireAradProject();
+  requireArcProject();
 
   if (!query.trim()) {
-    console.error('Usage: arad query <search terms>');
+    console.error('Usage: arc query <search terms>');
     console.log('');
     console.log('Examples:');
-    console.log('  arad query "sqlite"');
-    console.log('  arad query "type:decision status:accepted"');
-    console.log('  arad query "driven_by:R-001"');
-    console.log('  arad query "tag:storage"');
+    console.log('  arc query "sqlite"');
+    console.log('  arc query "type:decision status:accepted"');
+    console.log('  arc query "driven_by:R-001"');
+    console.log('  arc query "tag:storage"');
     return;
   }
 

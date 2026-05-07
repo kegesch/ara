@@ -6,35 +6,35 @@
  * - MCP: return structured error messages
  */
 
-export class AradError extends Error {
+export class ArcError extends Error {
 	constructor(message: string) {
 		super(message);
-		this.name = "AradError";
+		this.name = "ArcError";
 	}
 }
 
-export class NotAnAradProject extends AradError {
+export class NotAnArcProject extends ArcError {
 	constructor() {
-		super("Not an ARAD project. Run `arad init` first.");
-		this.name = "NotAnAradProject";
+		super("Not an ARC project. Run `arc init` first.");
+		this.name = "NotAnArcProject";
 	}
 }
 
-export class EntityNotFound extends AradError {
+export class EntityNotFound extends ArcError {
 	constructor(public readonly id: string) {
 		super(`Entity ${id} not found.`);
 		this.name = "EntityNotFound";
 	}
 }
 
-export class ValidationError extends AradError {
+export class ValidationError extends ArcError {
 	constructor(message: string) {
 		super(message);
 		this.name = "ValidationError";
 	}
 }
 
-export class HasDependents extends AradError {
+export class HasDependents extends ArcError {
 	public readonly dependentIds: string[];
 
 	constructor(
@@ -49,7 +49,7 @@ export class HasDependents extends AradError {
 	}
 }
 
-export class DuplicateLink extends AradError {
+export class DuplicateLink extends ArcError {
 	constructor(
 		public readonly fromId: string,
 		public readonly toId: string,
@@ -60,7 +60,7 @@ export class DuplicateLink extends AradError {
 	}
 }
 
-export class NoRelationshipFound extends AradError {
+export class NoRelationshipFound extends ArcError {
 	constructor(
 		public readonly fromId: string,
 		public readonly toId: string,
@@ -70,7 +70,7 @@ export class NoRelationshipFound extends AradError {
 	}
 }
 
-export class AmbiguousEdge extends AradError {
+export class AmbiguousEdge extends ArcError {
 	public readonly validTypes: string[];
 
 	constructor(
@@ -86,7 +86,7 @@ export class AmbiguousEdge extends AradError {
 	}
 }
 
-export class InvalidEdge extends AradError {
+export class InvalidEdge extends ArcError {
 	public readonly validTypes: string[];
 
 	constructor(
@@ -103,7 +103,7 @@ export class InvalidEdge extends AradError {
 	}
 }
 
-export class NoValidEdge extends AradError {
+export class NoValidEdge extends ArcError {
 	constructor(
 		public readonly fromType: string,
 		public readonly toType: string,
@@ -113,14 +113,14 @@ export class NoValidEdge extends AradError {
 	}
 }
 
-export class SelfReference extends AradError {
+export class SelfReference extends ArcError {
 	constructor(public readonly id: string) {
 		super(`Cannot link an entity to itself (${id}).`);
 		this.name = "SelfReference";
 	}
 }
 
-export class AlreadyInStatus extends AradError {
+export class AlreadyInStatus extends ArcError {
 	constructor(
 		public readonly id: string,
 		public readonly status: string,
@@ -130,7 +130,7 @@ export class AlreadyInStatus extends AradError {
 	}
 }
 
-export class WrongType extends AradError {
+export class WrongType extends ArcError {
 	constructor(
 		public readonly id: string,
 		public readonly actualType: string,
@@ -143,7 +143,7 @@ export class WrongType extends AradError {
 	}
 }
 
-export class TypeMismatch extends AradError {
+export class TypeMismatch extends ArcError {
 	constructor(
 		public readonly oldId: string,
 		public readonly oldType: string,
@@ -157,14 +157,14 @@ export class TypeMismatch extends AradError {
 	}
 }
 
-export class EntityAlreadyExists extends AradError {
+export class EntityAlreadyExists extends ArcError {
 	constructor(public readonly id: string) {
 		super(`Entity ${id} already exists.`);
 		this.name = "EntityAlreadyExists";
 	}
 }
 
-export class InvalidStatus extends AradError {
+export class InvalidStatus extends ArcError {
 	constructor(
 		public readonly status: string,
 		public readonly validStatuses: string[],

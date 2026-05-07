@@ -5,7 +5,7 @@ import { performInvalidate } from "../src/commands/validate";
 import { performLink } from "../src/commands/link";
 import { createEntity } from "../src/commands/add";
 import {
-	initAradDir,
+	initArcDir,
 	readAllEntities,
 	readEntityById,
 } from "../src/io/files";
@@ -14,7 +14,7 @@ const TMP = join(import.meta.dir, "_tmp_invalidate_derive");
 
 beforeEach(() => {
 	mkdirSync(TMP, { recursive: true });
-	initAradDir(TMP, "test-project");
+	initArcDir(TMP, "test-project");
 });
 
 afterEach(() => {

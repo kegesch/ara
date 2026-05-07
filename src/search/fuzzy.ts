@@ -1,4 +1,4 @@
-// Fuzzy text search for ARAD entities
+// Fuzzy text search for ARC entities
 
 import { getDescriptor, hasRelation } from "../entities/registry";
 import type { Entity, EntityType } from "../types";

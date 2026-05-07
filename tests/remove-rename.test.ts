@@ -12,7 +12,7 @@ import {
 } from "../src/core/errors";
 import {
 	getNextId,
-	initAradDir,
+	initArcDir,
 	readAllEntities,
 	readEntityById,
 } from "../src/io/files";
@@ -21,7 +21,7 @@ const TMP = join(import.meta.dir, "_tmp_remove_rename");
 
 beforeEach(() => {
 	mkdirSync(TMP, { recursive: true });
-	initAradDir(TMP, "test-project");
+	initArcDir(TMP, "test-project");
 });
 
 afterEach(() => {
@@ -43,7 +43,7 @@ describe("remove", () => {
 
 	test("removes file from disk", () => {
 		createEntity(TMP, { type: "requirement", title: "Test req" });
-		const folder = join(TMP, ".arad", "requirements");
+		const folder = join(TMP, ".arc", "requirements");
 		expect(readdirSync(folder).length).toBe(1);
 
 		performRemove(TMP, "R-001");

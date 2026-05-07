@@ -1,10 +1,10 @@
-// arad link/unlink <from-id> <to-id> [--type <edge-type>]
+// arc link/unlink <from-id> <to-id> [--type <edge-type>]
 
 import { colorId, dim, green, red, yellow } from "../display/format.js";
 import {
-	isAradProject,
+	isArcProject,
 	readEntityById,
-	requireAradProject,
+	requireArcProject,
 	updateEntity,
 	withLock,
 } from "../io/files.js";
@@ -27,7 +27,7 @@ import {
 	InvalidEdge,
 	NoRelationshipFound,
 	NoValidEdge,
-	NotAnAradProject,
+	NotAnArcProject,
 	SelfReference,
 } from "../core/errors.js";
 
@@ -58,7 +58,7 @@ export function performLink(
 	toId: string,
 	options?: LinkOptions,
 ): LinkResult {
-	if (!isAradProject(dir)) throw new NotAnAradProject();
+	if (!isArcProject(dir)) throw new NotAnArcProject();
 
 	const fromEntity = readEntityById(dir, fromId);
 	if (!fromEntity) throw new EntityNotFound(fromId);
@@ -165,7 +165,7 @@ export function performUnlink(
 	toId: string,
 	options?: UnlinkOptions,
 ): UnlinkResult {
-	if (!isAradProject(dir)) throw new NotAnAradProject();
+	if (!isArcProject(dir)) throw new NotAnArcProject();
 
 	const fromEntity = readEntityById(dir, fromId);
 	if (!fromEntity) throw new EntityNotFound(fromId);
@@ -235,7 +235,7 @@ export async function linkCommand(
 	toId: string,
 	options?: LinkOptions,
 ): Promise<void> {
-	requireAradProject();
+	requireArcProject();
 
 	try {
 		const result = await withLock(process.cwd(), () =>
@@ -260,7 +260,7 @@ export async function unlinkCommand(
 	toId: string,
 	options?: UnlinkOptions,
 ): Promise<void> {
-	requireAradProject();
+	requireArcProject();
 
 	try {
 		const result = await withLock(process.cwd(), () =>

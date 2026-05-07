@@ -1,27 +1,27 @@
-// arad init
+// arc init
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { ARAD_DIR, initAradDir } from "../io/files.js";
+import { ARC_DIR, initArcDir } from "../io/files.js";
 import { allDescriptors } from "../entities/registry.js";
 
 export function initCommand(): void {
 	const dir = process.cwd();
-	const aradPath = join(dir, ARAD_DIR);
+	const arcPath = join(dir, ARC_DIR);
 
-	if (existsSync(aradPath)) {
-		console.log("Already an ARAD project.");
+	if (existsSync(arcPath)) {
+		console.log("Already an ARC project.");
 		return;
 	}
 
 	const projectName = dir.split(/[/\\]/).pop() ?? "project";
-	initAradDir(dir, projectName);
+	initArcDir(dir, projectName);
 
-	console.log(`Initialized ARAD project "${projectName}":`);
-	console.log(`  ${ARAD_DIR}/`);
-	console.log(`    arad.yaml`);
+	console.log(`Initialized ARC project "${projectName}":`);
+	console.log(`  ${ARC_DIR}/`);
+	console.log(`    arc.yaml`);
 	for (const desc of allDescriptors()) {
 		console.log(`    ${desc.folder}/`);
 	}
 	console.log("");
-	console.log("Commit .arad/ to git — it lives alongside your code.");
+	console.log("Commit .arc/ to git — it lives alongside your code.");
 }

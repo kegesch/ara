@@ -1,4 +1,4 @@
-// arad status — quick project health summary
+// arc status — quick project health summary
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { bold, dim, green, red, yellow } from "../display/format.js";
@@ -11,10 +11,10 @@ import {
 	findOrphans,
 	findUnvalidatedAssumptions,
 } from "../graph/analysis.js";
-import { ARAD_DIR, isAradProject, readAllEntities, requireAradProject } from "../io/files.js";
+import { ARC_DIR, isArcProject, readAllEntities, requireArcProject } from "../io/files.js";
 import type { Entity, EntityType } from "../types.js";
 import { ENTITY_TYPE_ORDER, allTypes } from "../entities/registry.js";
-import { NotAnAradProject } from "../core/errors.js";
+import { NotAnArcProject } from "../core/errors.js";
 
 // ─── Pure logic types ───
 
@@ -46,12 +46,12 @@ export interface StatusResult {
  * Get project health status as structured data.
  */
 export function getStatus(dir: string): StatusResult {
-	if (!isAradProject(dir)) throw new NotAnAradProject();
+	if (!isArcProject(dir)) throw new NotAnArcProject();
 
 	// Read project name
 	let projectName = "project";
 	try {
-		const config = readFileSync(join(dir, ARAD_DIR, "arad.yaml"), "utf-8");
+		const config = readFileSync(join(dir, ARC_DIR, "arc.yaml"), "utf-8");
 		const match = config.match(/name:\s*(.+)/);
 		if (match) projectName = match[1].trim();
 	} catch {}
@@ -122,11 +122,11 @@ export function getStatus(dir: string): StatusResult {
 // ─── CLI entry point ───
 
 export function statusCommand(): void {
-	requireAradProject();
+	requireArcProject();
 
 	const result = getStatus(process.cwd());
 
-	console.log(bold(`ARAD project "${result.projectName}"`));
+	console.log(bold(`ARC project "${result.projectName}"`));
 	console.log("");
 
 	for (const entry of result.entities) {

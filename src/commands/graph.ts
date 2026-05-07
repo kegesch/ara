@@ -1,11 +1,11 @@
-// arad graph — visualize the ARAD graph as Mermaid, DOT, or ASCII
+// arc graph — visualize the ARC graph as Mermaid, DOT, or ASCII
 
 import { buildGraph } from "../graph/graph.js";
-import { readAllEntities, requireAradProject } from "../io/files.js";
+import { readAllEntities, requireArcProject } from "../io/files.js";
 import type { Edge, Entity } from "../types.js";
 
 export function graphCommand(format: string = "mermaid"): void {
-	requireAradProject();
+	requireArcProject();
 
 	const entities = readAllEntities();
 	if (entities.length === 0) {
@@ -153,7 +153,7 @@ export function renderDot(graph: {
 	edges: Edge[];
 }): string {
 	const lines: string[] = [
-		"digraph ARAD {",
+		"digraph ARC {",
 		"  rankdir=BT;",
 		'  node [shape=box, style=filled, fontname="Arial"];',
 		"",

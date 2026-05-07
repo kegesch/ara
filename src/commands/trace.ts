@@ -1,12 +1,12 @@
-// arad trace <id>
-import { readAllEntities, requireAradProject } from '../io/files.js';
+// arc trace <id>
+import { readAllEntities, requireArcProject } from '../io/files.js';
 import { buildGraph, traceUp } from '../graph/graph.js';
 import { findUnvalidatedAssumptions } from '../graph/analysis.js';
 import { formatTraceTree, colorId, yellow, dim } from '../display/format.js';
 import type { Entity } from '../types.js';
 
 export function traceCommand(id: string): void {
-  requireAradProject();
+  requireArcProject();
 
   const entities = readAllEntities();
   const graph = buildGraph(entities);

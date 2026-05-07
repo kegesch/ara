@@ -1,20 +1,20 @@
-// arad edit <id>
+// arc edit <id>
 
 import { execSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { colorId } from "../display/format.js";
-import { ARAD_DIR, requireAradProject } from "../io/files.js";
+import { ARC_DIR, requireArcProject } from "../io/files.js";
 import { allDescriptors } from "../entities/registry.js";
 
 export function editCommand(id: string): void {
-	requireAradProject();
+	requireArcProject();
 
 	// Find the file for this entity
-	const aradPath = join(process.cwd(), ARAD_DIR);
+	const arcPath = join(process.cwd(), ARC_DIR);
 
 	for (const desc of allDescriptors()) {
-		const folderPath = join(aradPath, desc.folder);
+		const folderPath = join(arcPath, desc.folder);
 		if (!existsSync(folderPath)) continue;
 
 		const files = readdirSync(folderPath).filter(

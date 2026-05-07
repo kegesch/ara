@@ -1,20 +1,39 @@
 {
-  "name": "arad",
+  "name": "@kegesch/arc",
   "version": "0.1.0",
-  "description": "Architecture, Requirements, Assumptions, Decisions — traceability for humans and agents",
+  "description": "Architecture, Requirements & Choices — traceability for humans and agents",
   "type": "module",
-  "keywords": ["pi-package"],
-  "bin": {
-    "arad": "./src/index.ts"
+  "keywords": [
+    "architecture",
+    "adr",
+    "decision-records",
+    "requirements",
+    "traceability",
+    "cli"
+  ],
+  "author": "kegesch",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kegesch/arc.git"
   },
+  "bin": {
+    "arc": "./src/index.ts"
+  },
+  "files": [
+    "src/**",
+    "skill/**",
+    "README.md",
+    "LICENSE"
+  ],
   "pi": {
     "skills": ["./skill"]
   },
   "scripts": {
     "dev": "bun run src/index.ts",
-    "build": "bun build src/index.ts --compile --outfile arad",
+    "build": "bun build src/index.ts --compile --outfile arc",
     "test": "bun test",
-    "arad": "bun run src/index.ts"
+    "prepublishOnly": "echo 'Publishing via bun. If you need a build step, add it here.'"
   },
   "dependencies": {
     "commander": "^13.1.0",

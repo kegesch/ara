@@ -1,14 +1,14 @@
-// Heuristic analysis functions for ARAD.
+// Heuristic analysis functions for ARC.
 //
 // These functions are type-aware: they know about specific entity types
 // (decision, requirement, assumption, etc.) and apply domain-specific
 // heuristics. They sit on top of the type-agnostic graph engine.
 
-import type { AradGraph, Entity } from "../types";
+import type { ArcGraph, Entity } from "../types";
 import { getDependents } from "./graph";
 
 /** Find decisions with no driven_by (no backing requirement or assumption) */
-export function findOrphans(g: AradGraph): Entity[] {
+export function findOrphans(g: ArcGraph): Entity[] {
 	const orphans: Entity[] = [];
 	for (const [, entity] of g.entities) {
 		if (entity.type === "decision" && entity.driven_by.length === 0) {
@@ -19,7 +19,7 @@ export function findOrphans(g: AradGraph): Entity[] {
 }
 
 /** Find assumptions that are still unvalidated */
-export function findUnvalidatedAssumptions(g: AradGraph): Entity[] {
+export function findUnvalidatedAssumptions(g: ArcGraph): Entity[] {
 	const result: Entity[] = [];
 	for (const [, entity] of g.entities) {
 		if (entity.type === "assumption" && entity.status === "unvalidated") {
@@ -73,7 +73,7 @@ export interface PossibleContradiction {
  * Find possible contradictions between requirements based on opposing terms.
  */
 export function findPossibleContradictions(
-	g: AradGraph,
+	g: ArcGraph,
 	oppositions: [string, string][] = DEFAULT_OPPOSITIONS,
 ): PossibleContradiction[] {
 	const requirements = [...g.entities.values()].filter(
@@ -140,7 +140,7 @@ export interface PossibleDuplicate {
  * Uses a simple Jaccard-like token overlap score.
  */
 export function findPossibleDuplicates(
-	g: AradGraph,
+	g: ArcGraph,
 	threshold: number = 0.6,
 ): PossibleDuplicate[] {
 	const requirements = [...g.entities.values()].filter(
@@ -191,7 +191,7 @@ export interface StatusAnomaly {
  * - Accepted decisions driven by deprecated/rejected requirements
  * - Accepted decisions backed by invalidated assumptions
  */
-export function findStatusAnomalies(g: AradGraph): StatusAnomaly[] {
+export function findStatusAnomalies(g: ArcGraph): StatusAnomaly[] {
 	const anomalies: StatusAnomaly[] = [];
 
 	for (const [, entity] of g.entities) {
@@ -229,7 +229,7 @@ export function findStatusAnomalies(g: AradGraph): StatusAnomaly[] {
 /**
  * Find requirements that have no decisions addressing them (orphan requirements).
  */
-export function findOrphanRequirements(g: AradGraph): Entity[] {
+export function findOrphanRequirements(g: ArcGraph): Entity[] {
 	const orphans: Entity[] = [];
 	for (const [, entity] of g.entities) {
 		if (entity.type === "requirement" && entity.status === "accepted") {

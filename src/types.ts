@@ -1,4 +1,4 @@
-// Core type definitions for ARAD
+// Core type definitions for ARC
 
 export type EntityType =
 	| "requirement"
@@ -124,7 +124,7 @@ export interface Edge {
 	type: EdgeType;
 }
 
-export interface AradGraph {
+export interface ArcGraph {
 	entities: Map<string, Entity>;
 	edges: Edge[];
 	outgoing: Map<string, Edge[]>;

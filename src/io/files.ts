@@ -1,4 +1,4 @@
-// File I/O for ARAD entities
+// File I/O for ARC entities
 
 import {
 	existsSync,
@@ -18,12 +18,12 @@ import {
 } from "../entities/registry";
 import { parseEntity, serializeEntity } from "./parser";
 
-export const ARAD_DIR = ".arad";
+export const ARC_DIR = ".arc";
 
 // ─── File-based locking ───
 //
 // Uses mkdir (atomic on both Windows and POSIX) to acquire a lock.
-// Prevents parallel `arad add` commands from computing the same next ID.
+// Prevents parallel `arc add` commands from computing the same next ID.
 
 const LOCK_DIR = ".lock";
 const LOCK_RETRY_MS = 50;
@@ -31,7 +31,7 @@ const LOCK_TIMEOUT_MS = 5000;
 
 /** Acquire a file-based lock, run `fn`, then release. Retries until timeout. */
 export async function withLock<T>(dir: string, fn: () => T | Promise<T>): Promise<T> {
-	const lockPath = join(dir, ARAD_DIR, LOCK_DIR);
+	const lockPath = join(dir, ARC_DIR, LOCK_DIR);
 	const deadline = Date.now() + LOCK_TIMEOUT_MS;
 
 	while (true) {
@@ -62,26 +62,26 @@ export async function withLock<T>(dir: string, fn: () => T | Promise<T>): Promis
 }
 
 /** Check if current directory has been initialized */
-export function isAradProject(dir: string = process.cwd()): boolean {
-	return existsSync(join(dir, ARAD_DIR));
+export function isArcProject(dir: string = process.cwd()): boolean {
+	return existsSync(join(dir, ARC_DIR));
 }
 
-/** Assert this is an ARAD project, exit with message if not */
-export function requireAradProject(dir: string = process.cwd()): void {
-	if (!isAradProject(dir)) {
-		console.error("Not an ARAD project. Run `arad init` first.");
+/** Assert this is an ARC project, exit with message if not */
+export function requireArcProject(dir: string = process.cwd()): void {
+	if (!isArcProject(dir)) {
+		console.error("Not an ARC project. Run `arc init` first.");
 		process.exit(1);
 	}
 }
 
-/** Read all entities from the .arad/ directory */
+/** Read all entities from the .arc/ directory */
 export function readAllEntities(dir: string = process.cwd()): Entity[] {
 	const entities: Entity[] = [];
-	const aradPath = join(dir, ARAD_DIR);
+	const arcPath = join(dir, ARC_DIR);
 
 	for (const type of ENTITY_TYPE_ORDER) {
 		const config = ENTITY_CONFIG[type];
-		const folder = join(aradPath, config.folder);
+		const folder = join(arcPath, config.folder);
 		if (!existsSync(folder)) continue;
 
 		const files = readdirSync(folder)
@@ -107,9 +107,9 @@ export function readAllEntities(dir: string = process.cwd()): Entity[] {
 
 /** Determine the next available ID for a given entity type */
 export function getNextId(dir: string, type: EntityType): string {
-	const aradPath = join(dir, ARAD_DIR);
+	const arcPath = join(dir, ARC_DIR);
 	const config = ENTITY_CONFIG[type];
-	const folder = join(aradPath, config.folder);
+	const folder = join(arcPath, config.folder);
 	const prefix = config.prefix;
 
 	let maxId = 0;
@@ -139,9 +139,9 @@ export function slugify(title: string): string {
 
 /** Write an entity to disk, returns the relative file path */
 export function writeEntity(dir: string, entity: Entity): string {
-	const aradPath = join(dir, ARAD_DIR);
+	const arcPath = join(dir, ARC_DIR);
 	const config = ENTITY_CONFIG[entity.type];
-	const folder = join(aradPath, config.folder);
+	const folder = join(arcPath, config.folder);
 	mkdirSync(folder, { recursive: true });
 
 	const slug = slugify(entity.title);
@@ -164,8 +164,8 @@ export function readEntityById(dir: string, id: string): Entity | null {
 export function updateEntity(dir: string, entity: Entity): void {
 	// Find the existing file
 	const config = ENTITY_CONFIG[entity.type];
-	const aradPath = join(dir, ARAD_DIR);
-	const folder = join(aradPath, config.folder);
+	const arcPath = join(dir, ARC_DIR);
+	const folder = join(arcPath, config.folder);
 	if (!existsSync(folder)) return;
 
 	const files = readdirSync(folder).filter(
@@ -192,11 +192,11 @@ export function updateEntity(dir: string, entity: Entity): void {
 	writeFileSync(newPath, newContent, "utf-8");
 }
 
-/** Initialize the .arad/ directory structure */
-export function initAradDir(dir: string, name: string): void {
-	const aradPath = join(dir, ARAD_DIR);
+/** Initialize the .arc/ directory structure */
+export function initArcDir(dir: string, name: string): void {
+	const arcPath = join(dir, ARC_DIR);
 	for (const desc of allDescriptors()) {
-		mkdirSync(join(aradPath, desc.folder), { recursive: true });
+		mkdirSync(join(arcPath, desc.folder), { recursive: true });
 	}
-	writeFileSync(join(aradPath, "arad.yaml"), `name: ${name}\n`, "utf-8");
+	writeFileSync(join(arcPath, "arc.yaml"), `name: ${name}\n`, "utf-8");
 }

@@ -1,4 +1,4 @@
-// arad validate/invalidate/promote <id>
+// arc validate/invalidate/promote <id>
 
 import {
 	colorId,
@@ -11,9 +11,9 @@ import {
 import { buildGraph, getDependents, impactAnalysis } from "../graph/graph.js";
 import {
 	getNextId,
-	isAradProject,
+	isArcProject,
 	readAllEntities,
-	requireAradProject,
+	requireArcProject,
 	updateEntity,
 	withLock,
 	writeEntity,
@@ -22,7 +22,7 @@ import type { Assumption, Entity, Idea } from "../types.js";
 import {
 	AlreadyInStatus,
 	EntityNotFound,
-	NotAnAradProject,
+	NotAnArcProject,
 	WrongType,
 } from "../core/errors.js";
 
@@ -33,7 +33,7 @@ export interface ValidateResult {
 }
 
 export function performValidate(dir: string, id: string): ValidateResult {
-	if (!isAradProject(dir)) throw new NotAnAradProject();
+	if (!isArcProject(dir)) throw new NotAnArcProject();
 
 	const entities = readAllEntities(dir);
 	const entity = entities.find((e) => e.id === id);
@@ -68,7 +68,7 @@ export function performInvalidate(
 	id: string,
 	options?: InvalidateOptions,
 ): InvalidateResult {
-	if (!isAradProject(dir)) throw new NotAnAradProject();
+	if (!isArcProject(dir)) throw new NotAnArcProject();
 
 	const entities = readAllEntities(dir);
 	const graph = buildGraph(entities);
@@ -147,7 +147,7 @@ export function performPromote(
 	id: string,
 	targetType?: "requirement" | "decision",
 ): PromoteResult {
-	if (!isAradProject(dir)) throw new NotAnAradProject();
+	if (!isArcProject(dir)) throw new NotAnArcProject();
 
 	const entities = readAllEntities(dir);
 	const entity = entities.find((e) => e.id === id);
@@ -268,7 +268,7 @@ function promoteIdea(
 // ─── CLI entry points ───
 
 export function validateCommand(id: string): void {
-	requireAradProject();
+	requireArcProject();
 	try {
 		const result = performValidate(process.cwd(), id);
 		console.log(
@@ -283,7 +283,7 @@ export async function invalidateCommand(
 	id: string,
 	options?: { deriveRequirement?: string },
 ): Promise<void> {
-	requireAradProject();
+	requireArcProject();
 	try {
 		const result = await withLock(process.cwd(), () =>
 			performInvalidate(process.cwd(), id, options),
@@ -324,7 +324,7 @@ export async function invalidateCommand(
 				console.log("");
 				console.log(
 					yellow(
-						`💡 Create an opposing requirement: arad invalidate ${id} --derive-requirement '...'`,
+						`💡 Create an opposing requirement: arc invalidate ${id} --derive-requirement '...'`,
 					),
 				);
 			}
@@ -335,10 +335,10 @@ export async function invalidateCommand(
 }
 
 export async function promoteCommand(id: string): Promise<void> {
-	requireAradProject();
+	requireArcProject();
 
 	const targetType =
-		(process.env.__ARAD_PROMOTE_TO as "requirement" | "decision") ||
+		(process.env.__ARC_PROMOTE_TO as "requirement" | "decision") ||
 		"requirement";
 
 	try {
@@ -373,7 +373,7 @@ export async function promoteCommand(id: string): Promise<void> {
 			e.message.includes("must be validated before")
 		) {
 			console.error(e.message);
-			console.log(`  Run: arad validate ${id}`);
+			console.log(`  Run: arc validate ${id}`);
 			return;
 		}
 		handleError(e);

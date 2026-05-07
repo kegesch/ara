@@ -1,14 +1,14 @@
-// arad add <type> [title]
+// arc add <type> [title]
 
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
 	getNextId,
-	isAradProject,
+	isArcProject,
 	readAllEntities,
 	readEntityById,
-	requireAradProject,
+	requireArcProject,
 	updateEntity,
 	withLock,
 	writeEntity,
@@ -16,7 +16,7 @@ import {
 import type { Entity, EntityType } from "../types.js";
 import { getDescriptor, ENTITY_CONFIG } from "../entities/registry.js";
 import type { RawFrontmatter } from "../entities/descriptor.js";
-import { InvalidStatus, NotAnAradProject, ValidationError } from "../core/errors.js";
+import { InvalidStatus, NotAnArcProject, ValidationError } from "../core/errors.js";
 
 function readline(): Promise<string> {
 	return new Promise((resolve) => {
@@ -77,7 +77,7 @@ export function createEntity(
 	dir: string,
 	input: CreateEntityInput,
 ): CreateEntityResult {
-	if (!isAradProject(dir)) throw new NotAnAradProject();
+	if (!isArcProject(dir)) throw new NotAnArcProject();
 
 	if (!input.title.trim()) {
 		throw new ValidationError("Title is required.");
@@ -188,14 +188,14 @@ export async function addCommand(
 	titleArg?: string,
 	options?: AddOptions,
 ): Promise<void> {
-	requireAradProject();
+	requireArcProject();
 
 	const isInteractive = !!process.stdin.isTTY;
 
 	// Title
 	if (!titleArg && !isInteractive) {
 		console.error("Title is required in non-interactive mode.");
-		console.error('Usage: arad add <type> "Title here"');
+		console.error('Usage: arc add <type> "Title here"');
 		process.exit(1);
 	}
 	let title = titleArg ?? "";
@@ -343,7 +343,7 @@ export async function addCommand(
 		const editAnswer = await prompt("Open editor for description? [y/N]: ");
 		if (editAnswer.toLowerCase() === "y") {
 			const tmpId = getNextId(process.cwd(), type);
-			const tmpFile = join(process.cwd(), ".arad", `tmp-${tmpId}.md`);
+			const tmpFile = join(process.cwd(), ".arc", `tmp-${tmpId}.md`);
 			writeFileSync(tmpFile, templateBody, "utf-8");
 			try {
 				const editor = process.env.EDITOR || process.env.VISUAL || "vi";
@@ -374,5 +374,5 @@ export async function addCommand(
 	);
 
 	console.log(`\nCreated ${result.entity.id}: ${title.trim()}`);
-	console.log(`  .arad/${result.path}`);
+	console.log(`  .arc/${result.path}`);
 }

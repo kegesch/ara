@@ -1,7 +1,7 @@
-// arad import <path> — import existing ADR markdown files
+// arc import <path> — import existing ADR markdown files
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
-import { requireAradProject, getNextId, writeEntity, withLock } from '../io/files.js';
+import { requireArcProject, getNextId, writeEntity, withLock } from '../io/files.js';
 import { colorId, green, yellow, dim } from '../display/format.js';
 
 export interface ImportedEntity {
@@ -54,7 +54,7 @@ export function parseAdr(content: string, fileName: string): ImportedEntity {
 }
 
 export async function importCommand(sourcePath: string, options?: { type?: string }): Promise<void> {
-  requireAradProject();
+  requireArcProject();
 
   const type = options?.type ?? 'adr';
 
@@ -124,7 +124,7 @@ export async function importCommand(sourcePath: string, options?: { type?: strin
 
       const relPath = writeEntity(process.cwd(), entity);
       console.log(green(`✓ Imported ${colorId(id)}: ${parsed.title}`));
-      console.log(dim(`  from ${fileName} → .arad/${relPath}`));
+      console.log(dim(`  from ${fileName} → .arc/${relPath}`));
       imported++;
     }
   });
@@ -132,6 +132,6 @@ export async function importCommand(sourcePath: string, options?: { type?: strin
   console.log('');
   console.log(dim(`Imported ${imported} decision(s), skipped ${skipped}.`));
   if (imported > 0) {
-    console.log(yellow('⚠ Imported decisions have no driven_by links. Run `arad link` to connect them to requirements/assumptions.'));
+    console.log(yellow('⚠ Imported decisions have no driven_by links. Run `arc link` to connect them to requirements/assumptions.'));
   }
 }

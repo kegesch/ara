@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createEntity, type CreateEntityInput } from "../src/commands/add";
-import { withLock, getNextId, initAradDir } from "../src/io/files";
+import { withLock, getNextId, initArcDir } from "../src/io/files";
 
 const TMP = join(import.meta.dir, "_tmp_concurrency");
 
 beforeEach(() => {
 	mkdirSync(TMP, { recursive: true });
-	initAradDir(TMP, "test-project");
+	initArcDir(TMP, "test-project");
 });
 
 afterEach(() => {

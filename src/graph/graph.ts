@@ -1,11 +1,11 @@
-// In-memory graph engine for ARAD
+// In-memory graph engine for ARC
 //
 // This module is type-agnostic: it knows about entities, edges, and graph
 // algorithms, but never about specific entity types ("decision", "requirement",
 // etc.). Edge extraction is delegated to entity descriptors.
 
 import { getDescriptor } from "../entities/registry";
-import type { AradGraph, Edge, EdgeType, Entity } from "../types";
+import type { ArcGraph, Edge, EdgeType, Entity } from "../types";
 
 /** Edge types that represent dependency relationships (used for traversal). */
 const DEPENDENCY_EDGE_TYPES: Set<EdgeType> = new Set([
@@ -31,8 +31,8 @@ const TRACE_EDGE_TYPES: Set<EdgeType> = new Set([
  * Extracts all relationships from entity fields into a unified edge list
  * with bidirectional indexes for fast traversal.
  */
-export function buildGraph(entities: Entity[]): AradGraph {
-	const g: AradGraph = {
+export function buildGraph(entities: Entity[]): ArcGraph {
+	const g: ArcGraph = {
 		entities: new Map(),
 		edges: [],
 		outgoing: new Map(),
@@ -59,7 +59,7 @@ export function buildGraph(entities: Entity[]): AradGraph {
 	return g;
 }
 
-function addEdge(g: AradGraph, from: string, to: string, type: EdgeType): void {
+function addEdge(g: ArcGraph, from: string, to: string, type: EdgeType): void {
 	const edge: Edge = { from, to, type };
 	g.edges.push(edge);
 
@@ -75,7 +75,7 @@ function addEdge(g: AradGraph, from: string, to: string, type: EdgeType): void {
  * E.g., decisions driven by a requirement, or requirements derived from another.
  * Only traverses dependency edges (excludes conflicts_with, supersedes, etc.).
  */
-export function getDependents(g: AradGraph, id: string): Entity[] {
+export function getDependents(g: ArcGraph, id: string): Entity[] {
 	const result: Entity[] = [];
 	const incoming = g.incoming.get(id) ?? [];
 	for (const edge of incoming) {
@@ -92,7 +92,7 @@ export function getDependents(g: AradGraph, id: string): Entity[] {
  * E.g., requirements driving a decision, assumptions backing it.
  * Only traverses dependency edges (excludes conflicts_with, supersedes, etc.).
  */
-export function getDependencies(g: AradGraph, id: string): Entity[] {
+export function getDependencies(g: ArcGraph, id: string): Entity[] {
 	const result: Entity[] = [];
 	const outgoing = g.outgoing.get(id) ?? [];
 	for (const edge of outgoing) {
@@ -105,7 +105,7 @@ export function getDependencies(g: AradGraph, id: string): Entity[] {
 }
 
 /** Find explicitly declared contradictions */
-export function findContradictions(g: AradGraph): [Entity, Entity][] {
+export function findContradictions(g: ArcGraph): [Entity, Entity][] {
 	const seen = new Set<string>();
 	const pairs: [Entity, Entity][] = [];
 
@@ -125,7 +125,7 @@ export function findContradictions(g: AradGraph): [Entity, Entity][] {
 
 /** Find references to entity IDs that don't exist */
 export function findDanglingRefs(
-	g: AradGraph,
+	g: ArcGraph,
 ): { from: string; ref: string; context: string }[] {
 	const danglers: { from: string; ref: string; context: string }[] = [];
 
@@ -150,7 +150,7 @@ export function findDanglingRefs(
  * Returns direct dependents and transitive dependents (BFS).
  */
 export function impactAnalysis(
-	g: AradGraph,
+	g: ArcGraph,
 	id: string,
 ): {
 	direct: Entity[];
@@ -187,7 +187,7 @@ export interface TraceNode {
 }
 
 export function traceUp(
-	g: AradGraph,
+	g: ArcGraph,
 	id: string,
 	visited: Set<string> = new Set(),
 ): TraceNode | null {
