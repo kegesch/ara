@@ -4,10 +4,21 @@
 
 A CLI tool that tracks architectural decisions, requirements, and assumptions as a linked graph. Detect contradictions, find orphans, trace impact, and validate assumptions — all in text files you can commit to git.
 
+## Installation
+
+```bash
+npm install -g @kegesch/arc
+```
+
+Or with bun:
+
+```bash
+bun install -g @kegesch/arc
+```
+
 ## Quick Start
 
 ```bash
-bun install
 arc init                # Create .arc/ in your project
 arc add requirement "All data must be encrypted at rest"
 arc add assumption "Users will have fewer than 1000 records"
