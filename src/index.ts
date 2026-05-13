@@ -19,6 +19,7 @@ import { showCommand } from "./commands/show.js";
 import { statusCommand } from "./commands/status.js";
 import { traceCommand } from "./commands/trace.js";
 import { skillCommand } from "./commands/skill.js";
+import { initAgentCommand } from "./commands/init-agent.js";
 import {
 	invalidateCommand,
 	promoteCommand,
@@ -254,6 +255,13 @@ program
 	.option("--install", "Install skill file into .hermes/skills/arc/ in the current project")
 	.action((opts: { install?: boolean }) => {
 		skillCommand({ install: opts.install });
+	});
+
+program
+	.command("init-agent")
+	.description("Append ARC usage instructions to AGENTS.md for AI agent onboarding")
+	.action(() => {
+		initAgentCommand();
 	});
 
 program.parse();

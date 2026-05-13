@@ -37,6 +37,7 @@ arc promote <id>        # promote assumption/idea to requirement
 arc graph --format dot  # visualize the graph
 arc skill               # output skill file for AI agents
 arc skill --install     # install skill file into .hermes/skills/arc/
+arc init-agent          # append ARC instructions to AGENTS.md
 ```
 
 ### Skill file for AI agents

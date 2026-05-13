@@ -250,6 +250,7 @@ arc query <text>                      Search entities (supports modifiers)
 arc graph                             Visualize graph (mermaid, dot, ascii)
 arc skill                             Output skill file for AI agents
 arc skill --install                   Install skill file into .hermes/skills/arc/
+arc init-agent                        Append ARC instructions to AGENTS.md
 ```
 
 ### Query Syntax

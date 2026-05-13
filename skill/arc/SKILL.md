@@ -370,3 +370,13 @@ arc skill --install
 ```
 
 The skill file covers all entity types, relationships, lifecycles, workflow patterns, and best practices for agent-driven architecture documentation.
+
+### Agent onboarding with AGENTS.md
+
+For projects that use AGENTS.md (or similar agent instruction files), ARC can append a concise usage section:
+
+```bash
+arc init-agent
+```
+
+This appends a structured ARC reference to `AGENTS.md` in the current project, including commands, entity types, relationships, and workflow rules. It's idempotent — running it again updates the ARC section without duplicating it.
