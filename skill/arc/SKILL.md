@@ -20,27 +20,33 @@ The `.arc/` directory will be created in the project root. Commit it to git — 
 
 ## When to Use This Skill
 
-| Situation                                                          | Action                 |
+|| Situation                                                          | Action                 |
 | ------------------------------------------------------------------ | ---------------------- |
-| User describes a feature or constraint the system must satisfy     | `arc add requirement` |
-| User states something they believe to be true but haven't verified | `arc add assumption`  |
-| User makes an architectural or design choice                       | `arc add decision`    |
-| User has a speculative idea or "what if?" thought                  | `arc add idea`        |
-| User asks "why did we decide X?"                                   | `arc trace D-xxx`     |
+| User describes a feature or constraint the system must satisfy     | `arc add requirement`  |
+| User states something they believe to be true but haven't verified | `arc add assumption`   |
+| User makes an architectural or design choice                       | `arc add decision`     |
+| User has a speculative idea or "what if?" thought                  | `arc add idea`         |
+| User identifies a person, team, or group with interest in the system | `arc add stakeholder` |
+| User identifies something that could go wrong                       | `arc add risk`         |
+| User wants to define a shared term or concept                      | `arc add term`         |
+| User asks "why did we decide X?"                                   | `arc trace D-xxx`      |
 | User asks "what happens if Y is wrong?"                            | `arc impact A-xxx`    |
-| User wants to check the health of their architecture docs          | `arc check`           |
-| User validates an assumption                                       | `arc validate A-xxx`  |
-| User wants to connect entities after the fact                      | `arc link`            |
-| User wants to visualize the full graph                             | `arc graph`           |
+| User wants to check the health of their architecture docs          | `arc check`            |
+| User validates an assumption                                       | `arc validate A-xxx`   |
+| User wants to connect entities after the fact                      | `arc link`             |
+| User wants to visualize the full graph                             | `arc graph`            |
 
 ## Core Concepts
 
-### Four entity types
+### Seven entity types
 
 - **Requirement** (R-xxx) — Something the system must satisfy. Source of truth for what and why.
 - **Assumption** (A-xxx) — Something believed true but not verified. Dangerous when wrong. Can be promoted to a requirement once validated.
 - **Decision** (D-xxx) — An architectural or design choice. Should always trace back to requirements and/or assumptions.
 - **Idea** (I-xxx) — A speculative thought or possibility, not yet committed to. Can be promoted to a requirement or decision when it crystallizes.
+- **Stakeholder** (S-xxx) — A person, team, or group with interest in the system. Answers "who asked for this?" and "who is affected?".
+- **Risk** (K-xxx) — Something that could go wrong. Tracked and mitigated via decisions.
+- **Term** (T-xxx) — A shared vocabulary definition (ubiquitous language). Prevents ambiguity.
 
 ### Relationships
 
@@ -55,6 +61,9 @@ Decision ──supersedes──▶ Decision         replacement
 Idea ──inspired_by──▶ Any Entity          what sparked it
 Idea ──inspired_by──▶ Idea                idea building on idea
 Idea ──promoted_to──▶ Requirement/Decision graduation
+Requirement ──requested_by──▶ Stakeholder  who asked for this
+Decision ──affects──▶ Stakeholder          who is affected
+Risk ──mitigated_by──▶ Decision            what addresses this risk
 ```
 
 Every decision should have at least one `driven_by` reference. Decisions without backing are "orphans" — a code smell.
@@ -77,6 +86,32 @@ explore → parked       (interesting but not now)
     └──→ rejected     (explored and discarded)
 ```
 
+### Stakeholder lifecycle
+
+```
+active → inactive   (no longer involved)
+```
+
+### Risk lifecycle
+
+```
+identified → mitigated   (decision addresses it)
+    │
+    ├──→ accepted    (acknowledged, not mitigating)
+    │
+    ├──→ materialized (it happened)
+    │
+    └──→ closed      (no longer relevant)
+```
+
+### Term lifecycle
+
+```
+draft → accepted    (the team agrees on this definition)
+    │
+    └──→ deprecated (no longer used, replaced by another term)
+```
+
 Ideas are **non-binding**: they don't appear in strict `arc check` results (no orphan warnings, no contradiction checks). Use them to capture speculative thoughts without ceremony.
 
 **Always surface unvalidated assumptions.** An accepted decision backed by an unvalidated assumption is fragile. Encourage the user to validate or promote assumptions early.
@@ -89,7 +124,7 @@ Ideas are **non-binding**: they don't appear in strict `arc check` results (no o
 arc init
 ```
 
-Creates `.arc/` with `requirements/`, `assumptions/`, `decisions/`, `ideas/` subdirectories.
+Creates `.arc/` with subdirectories: `requirements/`, `assumptions/`, `decisions/`, `ideas/`, `stakeholders/`, `risks/`, `terms/`.
 
 ### 2. Add entities
 
@@ -105,6 +140,16 @@ arc add decision "Use SQLite for local storage" --status=accepted --driven-by="R
 
 # Ideas — speculative thoughts, linked to what inspired them
 arc add idea "Use CRDTs for real-time sync" --inspired-by="D-001" --tags=sync
+
+# Stakeholders — who cares about this system
+arc add stakeholder "Warehouse operations team" --context=fulfillment
+arc add stakeholder "Finance department" --context=billing
+
+# Risks — what could go wrong
+arc add risk "Payment provider downtime during peak hours" --context=billing
+
+# Terms — shared vocabulary definitions
+arc add term "Order" --context=billing
 
 # With body content (non-interactive / agent use)
 arc add decision "Use SQLite" --body='# Decision: Use SQLite
@@ -139,6 +184,15 @@ arc link D-003 D-001 --type=supersedes
 
 # Mark two requirements as conflicting
 arc link R-002 R-003 --type=conflicts_with
+
+# Link a requirement to the stakeholder who requested it
+arc link R-001 S-001 --type=requested_by
+
+# Link a decision to the stakeholder it affects
+arc link D-003 S-002 --type=affects
+
+# Link a risk to the decision that mitigates it
+arc link K-001 D-005 --type=mitigated_by
 ```
 
 Edge type is auto-inferred when unambiguous:
@@ -282,12 +336,47 @@ arc check --format json
 
 Exit code 0 = clean. Exit code 1 = issues found (or warnings in strict mode).
 
-## MCP Integration
+## Agent Integration
 
-ARC exposes an MCP server for agents to interact with the graph programmatically:
+ARC is designed for seamless agent use. All commands work non-interactively and produce structured output:
 
 ```bash
-arc mcp
+# Machine-readable health check for CI/agents
+arc check --format json
+
+# Structured output for all list/show commands
+arc list --format json
+arc show D-001
+arc trace D-001
+arc impact A-001
+
+# Non-interactive add (no TTY prompts)
+arc add decision "Use SQLite" --driven-by="R-001" --status=accepted --body="..."
+
+# Query with structured modifiers
+arc query "type:decision status:accepted"
 ```
 
-Available tools: `arc_list`, `arc_show`, `arc_trace`, `arc_impact`, `arc_check`, `arc_query`, `arc_add`, `arc_validate`, `arc_invalidate`, `arc_promote`. All return structured JSON.
+### Skill file installation
+
+ARC ships a skill file that teaches agents how to use it:
+
+```bash
+# Print the skill file to stdout (pipe to your agent's skill directory)
+arc skill
+
+# Install directly into the current project's .hermes/skills/ directory
+arc skill --install
+```
+
+The skill file covers all entity types, relationships, lifecycles, workflow patterns, and best practices for agent-driven architecture documentation.
+
+### Agent onboarding with AGENTS.md
+
+For projects that use AGENTS.md (or similar agent instruction files), ARC can append a concise usage section:
+
+```bash
+arc init-agent
+```
+
+This appends a structured ARC reference to `AGENTS.md` in the current project, including commands, entity types, relationships, and workflow rules. It's idempotent — running it again updates the ARC section without duplicating it.
