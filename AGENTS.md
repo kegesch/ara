@@ -1,4 +1,4 @@
-This is the **arc** repository — a CLI tool and MCP server for architecture traceability (Architecture, Requirements, Assumptions, Decisions).
+This is the **arc** repository — a CLI tool for architecture traceability (Architecture, Requirements, Assumptions, Decisions).
 
 ## Dogfooding: arc documents itself
 
@@ -25,10 +25,35 @@ This means:
 ```bash
 arc status              # project health summary
 arc list                # list all entities
-arc add <type> <title>  # add an entity
+arc add <type> <title>  # add an entity (requirement|assumption|decision|idea|stakeholder|risk|term)
 arc show <id>           # show entity detail + relationships
 arc link <from> <to>    # create a relationship
 arc trace <id>          # trace dependency tree
+arc impact <id>         # show what breaks if this changes
 arc check               # health check
+arc validate <id>       # mark assumption as validated
+arc invalidate <id>     # mark assumption as invalidated
+arc promote <id>        # promote assumption/idea to requirement
 arc graph --format dot  # visualize the graph
+arc skill               # output skill file for AI agents
+arc skill --install     # install skill file into .hermes/skills/arc/
+```
+
+### Skill file for AI agents
+
+ARC ships a skill file that teaches AI agents how to use it. To install it into the current project:
+
+```bash
+arc skill --install
+```
+
+This creates `.hermes/skills/arc/SKILL.md` which documents all entity types, relationships, lifecycles, and workflow patterns. Agents working in this project should load this skill before making architectural changes.
+
+### Development
+
+```bash
+bun install
+bun run dev -- init          # Run during development
+bun test                     # Run tests
+bun run build                # Compile to standalone binary
 ```

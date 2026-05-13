@@ -227,7 +227,7 @@ Use SQLite as the embedded database.
 
 ```
 arc init                              Initialize .arc/ in current directory
-arc add <type> [title]                Add entity (interactive, type: requirement|assumption|decision|idea)
+arc add <type> [title]                Add entity (type: requirement|assumption|decision|idea|stakeholder|risk|term)
                                         Options: --context, --status, --tags, --driven-by, --derived-from,
                                                  --conflicts-with, --enables, --supersedes, --inspired-by,
                                                  --body, --body-file
@@ -248,7 +248,8 @@ arc link <from> <to>                  Link two entities
 arc unlink <from> <to>               Remove a relationship
 arc query <text>                      Search entities (supports modifiers)
 arc graph                             Visualize graph (mermaid, dot, ascii)
-arc mcp                               Start MCP server (stdio)
+arc skill                             Output skill file for AI agents
+arc skill --install                   Install skill file into .hermes/skills/arc/
 ```
 
 ### Query Syntax
