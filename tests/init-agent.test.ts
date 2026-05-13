@@ -117,11 +117,21 @@ Old instructions here.
 		const noArcDir = join(TMP, "no-arc");
 		mkdirSync(noArcDir, { recursive: true });
 
+		// Mock process.exit to catch the exit code
+		const originalExit = process.exit;
+		let exitCode: number | null = null;
+		process.exit = ((code: number) => {
+			exitCode = code ?? 0;
+			// Don't actually exit — throw to stop execution
+			throw new Error(`process.exit(${exitCode})`);
+		}) as never;
+
 		try {
 			process.chdir(noArcDir);
-
-			expect(() => initAgentCommand()).toThrow();
+			expect(() => initAgentCommand()).toThrow("process.exit(1)");
+			expect(exitCode).toBe(1);
 		} finally {
+			process.exit = originalExit;
 			process.chdir(originalDir);
 		}
 	});
